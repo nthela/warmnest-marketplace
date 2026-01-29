@@ -1,12 +1,12 @@
 "use client";
 
 import { useQuery } from "convex/react";
-import { api } from "../../../../../convex/_generated/api";
+import { api } from "../../../../convex/_generated/api";
 import { Header } from "@/components/ui/header";
 import { Button } from "@/components/ui/button";
 import { useParams } from "next/navigation";
 import { ShoppingCart, Heart, Truck } from "lucide-react";
-import { Id } from "../../../../../convex/_generated/dataModel";
+import { Id } from "../../../../convex/_generated/dataModel";
 
 export default function ProductPage() {
     const params = useParams();
