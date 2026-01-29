@@ -36,7 +36,8 @@ export default function AddProductPage() {
     const router = useRouter();
 
     const form = useForm<FormValues>({
-        resolver: zodResolver(formSchema),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        resolver: zodResolver(formSchema) as any,
         defaultValues: {
             name: "",
             description: "",
