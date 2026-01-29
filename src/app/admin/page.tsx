@@ -6,7 +6,7 @@ import { Header } from "@/components/ui/header";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Id } from "../../convex/_generated/dataModel";
+import { Id } from "../../../convex/_generated/dataModel";
 
 export default function AdminDashboard() {
     const pendingVendors = useQuery(api.vendors.listPendingVendors);
