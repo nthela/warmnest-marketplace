@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 
-export default function ShopPage() {
+function ShopContent() {
     const searchParams = useSearchParams();
     const category = searchParams.get("category") || undefined;
 
@@ -100,5 +101,13 @@ export default function ShopPage() {
                 </main>
             </div>
         </div>
+    );
+}
+
+export default function ShopPage() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center">Loading...</div>}>
+            <ShopContent />
+        </Suspense>
     );
 }
