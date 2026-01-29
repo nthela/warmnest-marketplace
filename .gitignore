@@ -33,6 +33,11 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# JWT key files
+jwt_key*.txt
+generate_key.js
+_set_env.js
+
 # vercel
 .vercel
 
