@@ -40,6 +40,12 @@ export function Header() {
                     <Link href="/shop" className={isActive("/shop")}>
                         Shop
                     </Link>
+                    <Link href="/shop?category=all" className={isActive("/categories")}>
+                        Categories
+                    </Link>
+                    <Link href="/deals" className={isActive("/deals")}>
+                        Deals
+                    </Link>
                     {isAuthenticated && (
                         <Link href="/vendors" className={isActive("/vendors")}>
                             Vendors
@@ -100,6 +106,12 @@ export function Header() {
                                 </Link>
                                 <Link href="/shop" className={`text-lg font-medium ${pathname === "/shop" ? "text-primary" : ""}`}>
                                     Shop
+                                </Link>
+                                <Link href="/shop?category=all" className="text-lg font-medium">
+                                    Categories
+                                </Link>
+                                <Link href="/deals" className={`text-lg font-medium ${pathname === "/deals" ? "text-primary" : ""}`}>
+                                    Deals
                                 </Link>
                                 {isAuthenticated && (
                                     <Link href="/vendors" className={`text-lg font-medium ${pathname === "/vendors" ? "text-primary" : ""}`}>

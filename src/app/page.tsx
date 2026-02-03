@@ -1,4 +1,5 @@
 import { Header } from "@/components/ui/header";
+import { Footer } from "@/components/ui/footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import Link from "next/link";
@@ -93,7 +94,7 @@ export default function Home() {
         {/* Vendor CTA */}
         <section className="py-20 bg-primary/95 text-primary-foreground">
           <div className="container mx-auto px-4 text-center">
-            <h2 className="text-3xl font-bold mb-4">Grow Your Business with WarmNest</h2>
+            <h2 className="text-3xl font-bold mb-4 text-white">Grow Your Business with WarmNest</h2>
             <p className="text-lg max-w-2xl mx-auto mb-8 opacity-90">
               Join thousands of sellers and reach millions of customers. We handle the payments and marketing while you focus on what you love.
             </p>
@@ -104,40 +105,7 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="bg-slate-900 text-slate-300 py-12">
-        <div className="container mx-auto px-4 grid md:grid-cols-4 gap-8">
-          <div>
-            <h3 className="text-white font-bold text-lg mb-4">WarmNest</h3>
-            <p className="text-sm">South Africa's favorite online marketplace.</p>
-          </div>
-          <div>
-            <h4 className="text-white font-semibold mb-4">Shop</h4>
-            <ul className="space-y-2 text-sm">
-              <li><Link href="/shop">All Products</Link></li>
-              <li><Link href="/categories">Categories</Link></li>
-              <li><Link href="/deals">Daily Deals</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="text-white font-semibold mb-4">Support</h4>
-            <ul className="space-y-2 text-sm">
-              <li><Link href="/track-order">Track Order</Link></li>
-              <li><Link href="/contact">Contact Us</Link></li>
-              <li><Link href="/faq">FAQ</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="text-white font-semibold mb-4">Sell</h4>
-            <ul className="space-y-2 text-sm">
-              <li><Link href="/vendors/register">Become a Vendor</Link></li>
-              <li><Link href="/vendors/login">Vendor Portal</Link></li>
-            </ul>
-          </div>
-        </div>
-        <div className="container mx-auto px-4 mt-8 pt-8 border-t border-slate-800 text-sm text-center">
-          © 2024 WarmNest Marketplace. All rights reserved.
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
