@@ -10,6 +10,7 @@
 
 import type * as _tmp_debug from "../_tmp_debug.js";
 import type * as auth from "../auth.js";
+import type * as http from "../http.js";
 import type * as orders from "../orders.js";
 import type * as products from "../products.js";
 import type * as vendors from "../vendors.js";
@@ -23,6 +24,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   _tmp_debug: typeof _tmp_debug;
   auth: typeof auth;
+  http: typeof http;
   orders: typeof orders;
   products: typeof products;
   vendors: typeof vendors;
