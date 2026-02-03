@@ -4,10 +4,20 @@ import Link from "next/link";
 import Image from "next/image";
 
 import { usePathname } from "next/navigation";
-import { useConvexAuth } from "convex/react";
-import { Search, ShoppingCart, User, Menu } from "lucide-react";
+import { useConvexAuth, useQuery } from "convex/react";
+import { useAuthActions } from "@convex-dev/auth/react";
+import { useRouter } from "next/navigation";
+import { api } from "../../../convex/_generated/api";
+import { Search, ShoppingCart, User, Menu, LogOut, Store, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
     Sheet,
     SheetContent,
@@ -18,11 +28,19 @@ import {
 
 export function Header() {
     const pathname = usePathname();
+    const router = useRouter();
     const { isAuthenticated } = useConvexAuth();
+    const { signOut } = useAuthActions();
+    const user = useQuery(api.users.currentUser);
 
     const isActive = (path: string) => {
         return pathname === path ? "text-primary font-bold" : "text-muted-foreground hover:text-primary transition-colors";
     };
+
+    async function handleSignOut() {
+        await signOut();
+        router.push("/");
+    }
 
     return (
         <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -47,7 +65,7 @@ export function Header() {
                         Deals
                     </Link>
                     {isAuthenticated && (
-                        <Link href="/vendors" className={isActive("/vendors")}>
+                        <Link href="/vendors/dashboard" className={isActive("/vendors")}>
                             Vendors
                         </Link>
                     )}
@@ -83,11 +101,70 @@ export function Header() {
                         </Button>
                     </Link>
 
-                    <Link href={isAuthenticated ? "/account" : "/signin"}>
-                        <Button variant="ghost" size="icon">
-                            <User className="h-5 w-5" />
-                        </Button>
-                    </Link>
+                    {/* User Menu */}
+                    {isAuthenticated && user ? (
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="relative">
+                                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                        <span className="text-xs font-bold text-primary">
+                                            {user.name?.charAt(0).toUpperCase() || "U"}
+                                        </span>
+                                    </div>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-56">
+                                <div className="px-2 py-1.5">
+                                    <p className="text-sm font-medium">{user.name}</p>
+                                    <p className="text-xs text-muted-foreground">{user.email}</p>
+                                </div>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem asChild>
+                                    <Link href="/account" className="cursor-pointer">
+                                        <User className="mr-2 h-4 w-4" />
+                                        My Account
+                                    </Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                    <Link href="/track-order" className="cursor-pointer">
+                                        <ShoppingCart className="mr-2 h-4 w-4" />
+                                        My Orders
+                                    </Link>
+                                </DropdownMenuItem>
+                                {(user.role === "vendor" || user.vendorId) && (
+                                    <DropdownMenuItem asChild>
+                                        <Link href="/vendors/dashboard" className="cursor-pointer">
+                                            <Store className="mr-2 h-4 w-4" />
+                                            Vendor Dashboard
+                                        </Link>
+                                    </DropdownMenuItem>
+                                )}
+                                {user.role === "admin" && (
+                                    <DropdownMenuItem asChild>
+                                        <Link href="/admin" className="cursor-pointer">
+                                            <Shield className="mr-2 h-4 w-4" />
+                                            Admin
+                                        </Link>
+                                    </DropdownMenuItem>
+                                )}
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                    onClick={handleSignOut}
+                                    className="cursor-pointer text-red-600 focus:text-red-600"
+                                >
+                                    <LogOut className="mr-2 h-4 w-4" />
+                                    Sign Out
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    ) : (
+                        <Link href="/signin">
+                            <Button variant="ghost" size="sm" className="gap-2">
+                                <User className="h-4 w-4" />
+                                <span className="hidden md:inline">Sign In</span>
+                            </Button>
+                        </Link>
+                    )}
 
                     {/* Mobile Menu */}
                     <Sheet>
@@ -101,6 +178,22 @@ export function Header() {
                                 <SheetTitle>Menu</SheetTitle>
                             </SheetHeader>
                             <div className="flex flex-col gap-4 mt-8">
+                                {isAuthenticated && user && (
+                                    <>
+                                        <div className="flex items-center gap-3 pb-2">
+                                            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                                                <span className="text-sm font-bold text-primary">
+                                                    {user.name?.charAt(0).toUpperCase() || "U"}
+                                                </span>
+                                            </div>
+                                            <div>
+                                                <p className="font-medium">{user.name}</p>
+                                                <p className="text-xs text-muted-foreground capitalize">{user.role}</p>
+                                            </div>
+                                        </div>
+                                        <hr />
+                                    </>
+                                )}
                                 <Link href="/" className={`text-lg font-medium ${pathname === "/" ? "text-primary" : ""}`}>
                                     Home
                                 </Link>
@@ -114,7 +207,7 @@ export function Header() {
                                     Deals
                                 </Link>
                                 {isAuthenticated && (
-                                    <Link href="/vendors" className={`text-lg font-medium ${pathname === "/vendors" ? "text-primary" : ""}`}>
+                                    <Link href="/vendors/dashboard" className={`text-lg font-medium ${pathname?.startsWith("/vendors") ? "text-primary" : ""}`}>
                                         Vendors
                                     </Link>
                                 )}
@@ -122,9 +215,20 @@ export function Header() {
                                     Track Order
                                 </Link>
                                 <hr className="my-2" />
-                                <Link href={isAuthenticated ? "/account" : "/signin"} className="text-lg font-medium">
-                                    {isAuthenticated ? "My Account" : "Sign In"}
-                                </Link>
+                                {isAuthenticated ? (
+                                    <>
+                                        <Link href="/account" className="text-lg font-medium">
+                                            My Account
+                                        </Link>
+                                        <button onClick={handleSignOut} className="text-lg font-medium text-red-600 text-left">
+                                            Sign Out
+                                        </button>
+                                    </>
+                                ) : (
+                                    <Link href="/signin" className="text-lg font-medium">
+                                        Sign In
+                                    </Link>
+                                )}
                                 <Link href="/cart" className="text-lg font-medium">
                                     Cart
                                 </Link>

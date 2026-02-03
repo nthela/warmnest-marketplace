@@ -1,16 +1,24 @@
 "use client";
 
 import { useAuthActions } from "@convex-dev/auth/react";
+import { useConvexAuth } from "convex/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Header } from "@/components/ui/header";
 
 export default function SignInPage() {
     const { signIn } = useAuthActions();
+    const { isAuthenticated } = useConvexAuth();
     const router = useRouter();
+
+    useEffect(() => {
+        if (isAuthenticated) {
+            router.push("/account");
+        }
+    }, [isAuthenticated, router]);
     const [step, setStep] = useState<"signIn" | "signUp">("signIn");
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
@@ -28,7 +36,7 @@ export default function SignInPage() {
             } else {
                 await signIn("password", { email, password, name, flow: "signUp" });
             }
-            router.push("/");
+            router.push("/account");
         } catch (err) {
             console.error(err);
             if (step === "signIn") {
