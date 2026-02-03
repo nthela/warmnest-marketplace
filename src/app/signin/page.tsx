@@ -12,25 +12,30 @@ export default function SignInPage() {
     const { signIn } = useAuthActions();
     const router = useRouter();
     const [step, setStep] = useState<"signIn" | "signUp">("signIn");
+    const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
         setIsLoading(true);
+        setError("");
         try {
             if (step === "signIn") {
                 await signIn("password", { email, password, flow: "signIn" });
             } else {
-                await signIn("password", { email, password, flow: "signUp" });
+                await signIn("password", { email, password, name, flow: "signUp" });
             }
-            // Redirect or handle session check
-            // With @convex-dev/auth, redirects are often handled or we just go to home
             router.push("/");
-        } catch (error) {
-            console.error(error);
-            alert("Authentication failed. " + (error as any).message);
+        } catch (err) {
+            console.error(err);
+            if (step === "signIn") {
+                setError("Invalid email or password. Please try again.");
+            } else {
+                setError("Could not create account. The email may already be registered.");
+            }
         } finally {
             setIsLoading(false);
         }
@@ -45,7 +50,21 @@ export default function SignInPage() {
                         <CardTitle>{step === "signIn" ? "Sign In" : "Create Account"}</CardTitle>
                     </CardHeader>
                     <CardContent>
+                        {error && (
+                            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-sm text-red-700">
+                                {error}
+                            </div>
+                        )}
                         <form onSubmit={handleSubmit} className="space-y-4">
+                            {step === "signUp" && (
+                                <Input
+                                    type="text"
+                                    placeholder="Full Name"
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    required
+                                />
+                            )}
                             <Input
                                 type="email"
                                 placeholder="Email"
@@ -59,6 +78,7 @@ export default function SignInPage() {
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
+                                minLength={8}
                             />
                             <Button type="submit" className="w-full" disabled={isLoading}>
                                 {isLoading ? "Loading..." : (step === "signIn" ? "Sign In" : "Sign Up")}

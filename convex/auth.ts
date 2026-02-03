@@ -7,8 +7,8 @@ export const { auth, signIn, signOut, store } = convexAuth({
             profile(params) {
                 return {
                     email: params.email as string,
-                    name: params.name as string,
-                    role: "customer",
+                    name: (params.name as string) || (params.email as string).split("@")[0],
+                    role: "customer" as const,
                 };
             },
         }),
