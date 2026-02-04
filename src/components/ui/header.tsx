@@ -102,61 +102,67 @@ export function Header() {
                     </Link>
 
                     {/* User Menu */}
-                    {isAuthenticated && user ? (
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="relative">
-                                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                                        <span className="text-xs font-bold text-primary">
-                                            {user.name?.charAt(0).toUpperCase() || "U"}
-                                        </span>
+                    {isAuthenticated ? (
+                        user ? (
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="relative">
+                                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                                            <span className="text-xs font-bold text-primary">
+                                                {user.name?.charAt(0).toUpperCase() || "U"}
+                                            </span>
+                                        </div>
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-56">
+                                    <div className="px-2 py-1.5">
+                                        <p className="text-sm font-medium">{user.name}</p>
+                                        <p className="text-xs text-muted-foreground">{user.email}</p>
                                     </div>
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-56">
-                                <div className="px-2 py-1.5">
-                                    <p className="text-sm font-medium">{user.name}</p>
-                                    <p className="text-xs text-muted-foreground">{user.email}</p>
-                                </div>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem asChild>
-                                    <Link href="/account" className="cursor-pointer">
-                                        <User className="mr-2 h-4 w-4" />
-                                        My Account
-                                    </Link>
-                                </DropdownMenuItem>
-                                <DropdownMenuItem asChild>
-                                    <Link href="/track-order" className="cursor-pointer">
-                                        <ShoppingCart className="mr-2 h-4 w-4" />
-                                        My Orders
-                                    </Link>
-                                </DropdownMenuItem>
-                                {(user.role === "vendor" || user.vendorId) && (
+                                    <DropdownMenuSeparator />
                                     <DropdownMenuItem asChild>
-                                        <Link href="/vendors/dashboard" className="cursor-pointer">
-                                            <Store className="mr-2 h-4 w-4" />
-                                            Vendor Dashboard
+                                        <Link href="/account" className="cursor-pointer">
+                                            <User className="mr-2 h-4 w-4" />
+                                            My Account
                                         </Link>
                                     </DropdownMenuItem>
-                                )}
-                                {user.role === "admin" && (
                                     <DropdownMenuItem asChild>
-                                        <Link href="/admin" className="cursor-pointer">
-                                            <Shield className="mr-2 h-4 w-4" />
-                                            Admin
+                                        <Link href="/track-order" className="cursor-pointer">
+                                            <ShoppingCart className="mr-2 h-4 w-4" />
+                                            My Orders
                                         </Link>
                                     </DropdownMenuItem>
-                                )}
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                    onClick={handleSignOut}
-                                    className="cursor-pointer text-red-600 focus:text-red-600"
-                                >
-                                    <LogOut className="mr-2 h-4 w-4" />
-                                    Sign Out
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                        </DropdownMenu>
+                                    {(user.role === "vendor" || user.vendorId) && (
+                                        <DropdownMenuItem asChild>
+                                            <Link href="/vendors/dashboard" className="cursor-pointer">
+                                                <Store className="mr-2 h-4 w-4" />
+                                                Vendor Dashboard
+                                            </Link>
+                                        </DropdownMenuItem>
+                                    )}
+                                    {user.role === "admin" && (
+                                        <DropdownMenuItem asChild>
+                                            <Link href="/admin" className="cursor-pointer">
+                                                <Shield className="mr-2 h-4 w-4" />
+                                                Admin
+                                            </Link>
+                                        </DropdownMenuItem>
+                                    )}
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                        onClick={handleSignOut}
+                                        className="cursor-pointer text-red-600 focus:text-red-600"
+                                    >
+                                        <LogOut className="mr-2 h-4 w-4" />
+                                        Sign Out
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        ) : (
+                            <Button variant="ghost" size="icon" className="relative" disabled>
+                                <div className="h-8 w-8 rounded-full bg-primary/10 animate-pulse" />
+                            </Button>
+                        )
                     ) : (
                         <Link href="/signin">
                             <Button variant="ghost" size="sm" className="gap-2">

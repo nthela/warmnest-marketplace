@@ -49,8 +49,8 @@ export default function DealsPage() {
                             <Card key={product._id} className="overflow-hidden hover:shadow-lg transition-shadow">
                                 <div className="aspect-square bg-muted relative">
                                     <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-                                        {product.images?.[0] ? (
-                                            <img src={product.images[0]} alt={product.name} className="object-cover w-full h-full" />
+                                        {product.imageUrls?.[0] ? (
+                                            <img src={product.imageUrls[0]} alt={product.name} className="object-cover w-full h-full" />
                                         ) : (
                                             "No Image"
                                         )}

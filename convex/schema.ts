@@ -30,8 +30,9 @@ export default defineSchema({
     description: v.string(),
     price: v.number(),
     salePrice: v.optional(v.number()),
+    sku: v.optional(v.string()),
     stock: v.number(),
-    images: v.array(v.string()), // URLs
+    images: v.array(v.string()), // Storage IDs
     category: v.string(),
     tags: v.array(v.string()),
     isActive: v.boolean(),

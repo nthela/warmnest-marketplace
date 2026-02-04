@@ -16,7 +16,7 @@ export default function SignInPage() {
 
     useEffect(() => {
         if (isAuthenticated) {
-            router.push("/account");
+            router.push("/");
         }
     }, [isAuthenticated, router]);
     const [step, setStep] = useState<"signIn" | "signUp">("signIn");
@@ -36,7 +36,7 @@ export default function SignInPage() {
             } else {
                 await signIn("password", { email, password, name, flow: "signUp" });
             }
-            router.push("/account");
+            router.push("/");
         } catch (err) {
             console.error(err);
             if (step === "signIn") {

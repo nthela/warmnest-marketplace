@@ -1,7 +1,8 @@
 "use client";
 
-import { useMutation } from "convex/react";
-import { api } from "../../../../../convex/_generated/api";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../../../../../../convex/_generated/api";
+import { Id } from "../../../../../../convex/_generated/dataModel";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -17,9 +18,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 import { Header } from "@/components/ui/header";
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { X, Upload, ImageIcon, Star, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
@@ -35,18 +36,28 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-export default function AddProductPage() {
-    const createProduct = useMutation(api.vendors.createProduct);
+export default function EditProductPage() {
+    const params = useParams();
+    const productId = params.id as Id<"products">;
+    const product = useQuery(api.vendors.getProduct, { productId });
+    const updateProduct = useMutation(api.vendors.updateProduct);
     const generateUploadUrl = useMutation(api.vendors.generateUploadUrl);
     const router = useRouter();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-    const [previews, setPreviews] = useState<string[]>([]);
+    // Existing images (storage IDs from the product)
+    const [existingImages, setExistingImages] = useState<string[]>([]);
+    // Newly selected files
+    const [newFiles, setNewFiles] = useState<File[]>([]);
+    const [newPreviews, setNewPreviews] = useState<string[]>([]);
+    // mainIndex tracks across both existing + new: 0..existingImages.length-1 = existing, rest = new
     const [mainIndex, setMainIndex] = useState(0);
     const [uploading, setUploading] = useState(false);
+    const [formReady, setFormReady] = useState(false);
     const [tags, setTags] = useState<string[]>([]);
     const [tagInput, setTagInput] = useState("");
+
+    const totalImages = existingImages.length + newPreviews.length;
 
     const form = useForm<FormValues>({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -74,16 +85,34 @@ export default function AddProductPage() {
         setTags((prev) => prev.filter((t) => t !== tag));
     }, []);
 
+    // Populate form when product loads
+    useEffect(() => {
+        if (product && !formReady) {
+            form.reset({
+                name: product.name,
+                description: product.description,
+                price: product.price,
+                salePrice: product.salePrice ?? "",
+                sku: product.sku ?? "",
+                stock: product.stock,
+                category: product.category,
+            });
+            setExistingImages(product.images);
+            setTags(product.tags ?? []);
+            setFormReady(true);
+        }
+    }, [product, form, formReady]);
+
     function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
         const files = Array.from(e.target.files || []);
         const imageFiles = files.filter((f) => f.type.startsWith("image/"));
 
-        setSelectedFiles((prev) => [...prev, ...imageFiles]);
+        setNewFiles((prev) => [...prev, ...imageFiles]);
 
         imageFiles.forEach((file) => {
             const reader = new FileReader();
             reader.onload = (ev) => {
-                setPreviews((prev) => [...prev, ev.target?.result as string]);
+                setNewPreviews((prev) => [...prev, ev.target?.result as string]);
             };
             reader.readAsDataURL(file);
         });
@@ -91,10 +120,8 @@ export default function AddProductPage() {
         if (fileInputRef.current) fileInputRef.current.value = "";
     }
 
-    function removeImage(index: number) {
-        setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
-        setPreviews((prev) => prev.filter((_, i) => i !== index));
-        // Adjust mainIndex if needed
+    function removeExistingImage(index: number) {
+        setExistingImages((prev) => prev.filter((_, i) => i !== index));
         if (index === mainIndex) {
             setMainIndex(0);
         } else if (index < mainIndex) {
@@ -102,18 +129,29 @@ export default function AddProductPage() {
         }
     }
 
+    function removeNewImage(index: number) {
+        const globalIndex = existingImages.length + index;
+        setNewFiles((prev) => prev.filter((_, i) => i !== index));
+        setNewPreviews((prev) => prev.filter((_, i) => i !== index));
+        if (globalIndex === mainIndex) {
+            setMainIndex(0);
+        } else if (globalIndex < mainIndex) {
+            setMainIndex((prev) => prev - 1);
+        }
+    }
+
     async function onSubmit(values: FormValues) {
-        if (selectedFiles.length === 0) {
-            alert("Please upload at least one product image.");
+        if (existingImages.length === 0 && newFiles.length === 0) {
+            alert("Please have at least one product image.");
             return;
         }
 
         try {
             setUploading(true);
 
-            // Upload each file to Convex storage
-            const storageIds: string[] = [];
-            for (const file of selectedFiles) {
+            // Upload new files
+            const newImageIds: string[] = [];
+            for (const file of newFiles) {
                 const uploadUrl = await generateUploadUrl();
                 const result = await fetch(uploadUrl, {
                     method: "POST",
@@ -121,16 +159,19 @@ export default function AddProductPage() {
                     body: file,
                 });
                 const { storageId } = await result.json();
-                storageIds.push(storageId);
+                newImageIds.push(storageId);
             }
 
-            // Put main image first in the array
+            const allImages = [...existingImages, ...newImageIds];
+
+            // Put main image first
             const orderedImages = [
-                storageIds[mainIndex],
-                ...storageIds.filter((_, i) => i !== mainIndex),
+                allImages[mainIndex],
+                ...allImages.filter((_, i) => i !== mainIndex),
             ];
 
-            await createProduct({
+            await updateProduct({
+                productId,
                 name: values.name,
                 description: values.description,
                 price: values.price,
@@ -141,13 +182,35 @@ export default function AddProductPage() {
                 tags,
                 images: orderedImages,
             });
-            router.push("/vendors/dashboard");
+            router.push("/vendors/products");
         } catch (error) {
             console.error(error);
-            alert("Failed to create product. Ensure you are an approved vendor.");
+            alert("Failed to update product.");
         } finally {
             setUploading(false);
         }
+    }
+
+    if (product === undefined) {
+        return (
+            <div className="min-h-screen bg-slate-50">
+                <Header />
+                <div className="flex items-center justify-center py-20">
+                    <p className="text-muted-foreground">Loading product...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (product === null) {
+        return (
+            <div className="min-h-screen bg-slate-50">
+                <Header />
+                <div className="flex items-center justify-center py-20">
+                    <p className="text-red-600">Product not found.</p>
+                </div>
+            </div>
+        );
     }
 
     return (
@@ -156,7 +219,7 @@ export default function AddProductPage() {
             <div className="container mx-auto px-4 py-12 flex justify-center">
                 <Card className="w-full max-w-2xl">
                     <CardHeader>
-                        <CardTitle>Add New Product</CardTitle>
+                        <CardTitle>Edit Product</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <Form {...form}>
@@ -290,56 +353,64 @@ export default function AddProductPage() {
                                 {/* Image Upload */}
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium">Product Images</label>
-                                    <p className="text-xs text-muted-foreground">Click the star to set the main product image shown in listings.</p>
+                                    <p className="text-xs text-muted-foreground">Click an image to set it as the main product image.</p>
 
-                                    {/* Preview Grid */}
-                                    {previews.length > 0 && (
+                                    {/* Existing + New Previews Grid */}
+                                    {totalImages > 0 && (
                                         <div className="grid grid-cols-3 gap-3 mb-3">
-                                            {previews.map((src, i) => (
-                                                <div
-                                                    key={i}
-                                                    className={`relative aspect-square rounded-lg overflow-hidden border-2 bg-white group cursor-pointer ${
-                                                        i === mainIndex ? "border-primary ring-2 ring-primary/30" : "border-gray-200"
-                                                    }`}
+                                            {existingImages.map((storageId, i) => (
+                                                <ExistingImagePreview
+                                                    key={storageId}
+                                                    storageId={storageId}
+                                                    isMain={i === mainIndex}
                                                     onClick={() => setMainIndex(i)}
-                                                >
-                                                    <img
-                                                        src={src}
-                                                        alt={`Preview ${i + 1}`}
-                                                        className="w-full h-full object-cover"
-                                                    />
-                                                    {/* Main image badge */}
-                                                    {i === mainIndex && (
-                                                        <div className="absolute top-1 left-1 bg-primary text-white text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                                                            <Star className="h-2.5 w-2.5 fill-white" />
-                                                            MAIN
-                                                        </div>
-                                                    )}
-                                                    {/* Set as main hint on hover (non-main images) */}
-                                                    {i !== mainIndex && (
-                                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                            <span className="text-white text-xs font-medium">Set as main</span>
-                                                        </div>
-                                                    )}
-                                                    {/* Remove button */}
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => { e.stopPropagation(); removeImage(i); }}
-                                                        className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                    >
-                                                        <X className="h-3 w-3" />
-                                                    </button>
-                                                </div>
+                                                    onRemove={() => removeExistingImage(i)}
+                                                />
                                             ))}
+                                            {newPreviews.map((src, i) => {
+                                                const globalIdx = existingImages.length + i;
+                                                return (
+                                                    <div
+                                                        key={`new-${i}`}
+                                                        className={`relative aspect-square rounded-lg overflow-hidden border-2 bg-white group cursor-pointer ${
+                                                            globalIdx === mainIndex ? "border-primary ring-2 ring-primary/30" : "border-gray-200"
+                                                        }`}
+                                                        onClick={() => setMainIndex(globalIdx)}
+                                                    >
+                                                        <img
+                                                            src={src}
+                                                            alt={`New ${i + 1}`}
+                                                            className="w-full h-full object-cover"
+                                                        />
+                                                        {globalIdx === mainIndex && (
+                                                            <div className="absolute top-1 left-1 bg-primary text-white text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                                                                <Star className="h-2.5 w-2.5 fill-white" />
+                                                                MAIN
+                                                            </div>
+                                                        )}
+                                                        {globalIdx !== mainIndex && (
+                                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                                <span className="text-white text-xs font-medium">Set as main</span>
+                                                            </div>
+                                                        )}
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => { e.stopPropagation(); removeNewImage(i); }}
+                                                            className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        >
+                                                            <X className="h-3 w-3" />
+                                                        </button>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     )}
 
-                                    {/* Upload Button */}
                                     <div
                                         onClick={() => fileInputRef.current?.click()}
                                         className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors"
                                     >
-                                        {previews.length === 0 ? (
+                                        {totalImages === 0 ? (
                                             <>
                                                 <ImageIcon className="h-10 w-10 mx-auto mb-2 text-muted-foreground" />
                                                 <p className="text-sm font-medium">Click to upload product images</p>
@@ -347,7 +418,7 @@ export default function AddProductPage() {
                                             </>
                                         ) : (
                                             <p className="text-sm text-muted-foreground">
-                                                + Add more images ({previews.length} selected)
+                                                + Add more images ({totalImages} total)
                                             </p>
                                         )}
                                     </div>
@@ -366,10 +437,10 @@ export default function AddProductPage() {
                                     {uploading ? (
                                         <>
                                             <Upload className="mr-2 h-4 w-4 animate-spin" />
-                                            Uploading images...
+                                            Saving...
                                         </>
                                     ) : (
-                                        "Create Product"
+                                        "Save Changes"
                                     )}
                                 </Button>
                             </form>
@@ -377,6 +448,56 @@ export default function AddProductPage() {
                     </CardContent>
                 </Card>
             </div>
+        </div>
+    );
+}
+
+// Component to render an existing image from Convex storage with main selection
+function ExistingImagePreview({
+    storageId,
+    isMain,
+    onClick,
+    onRemove,
+}: {
+    storageId: string;
+    isMain: boolean;
+    onClick: () => void;
+    onRemove: () => void;
+}) {
+    const url = useQuery(api.vendors.getImageUrl, { storageId: storageId as Id<"_storage"> });
+
+    return (
+        <div
+            className={`relative aspect-square rounded-lg overflow-hidden border-2 bg-white group cursor-pointer ${
+                isMain ? "border-primary ring-2 ring-primary/30" : "border-gray-200"
+            }`}
+            onClick={onClick}
+        >
+            {url ? (
+                <img src={url} alt="Product" className="w-full h-full object-cover" />
+            ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                    <ImageIcon className="h-6 w-6 text-muted-foreground animate-pulse" />
+                </div>
+            )}
+            {isMain && (
+                <div className="absolute top-1 left-1 bg-primary text-white text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                    <Star className="h-2.5 w-2.5 fill-white" />
+                    MAIN
+                </div>
+            )}
+            {!isMain && (
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <span className="text-white text-xs font-medium">Set as main</span>
+                </div>
+            )}
+            <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onRemove(); }}
+                className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+                <X className="h-3 w-3" />
+            </button>
         </div>
     );
 }

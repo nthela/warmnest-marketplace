@@ -1,15 +1,28 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
+import { Id } from "../../../../convex/_generated/dataModel";
 import { Header } from "@/components/ui/header";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 
 export default function VendorProductsPage() {
     const products = useQuery(api.vendors.getProducts);
+    const deleteProduct = useMutation(api.vendors.deleteProduct);
+
+    async function handleDelete(productId: Id<"products">, name: string) {
+        if (confirm(`Are you sure you want to delete "${name}"? This cannot be undone.`)) {
+            try {
+                await deleteProduct({ productId });
+            } catch (error) {
+                console.error(error);
+                alert("Failed to delete product.");
+            }
+        }
+    }
 
     return (
         <div className="min-h-screen bg-slate-50">
@@ -58,8 +71,22 @@ export default function VendorProductsPage() {
                                         <TableCell>R {product.price}</TableCell>
                                         <TableCell>{product.stock}</TableCell>
                                         <TableCell>{product.isActive ? "Active" : "Inactive"}</TableCell>
-                                        <TableCell className="text-right">
-                                            <Button variant="ghost" size="sm">Edit</Button>
+                                        <TableCell className="text-right space-x-2">
+                                            <Link href={`/vendors/products/${product._id}/edit`}>
+                                                <Button variant="ghost" size="sm">
+                                                    <Pencil className="h-4 w-4 mr-1" />
+                                                    Edit
+                                                </Button>
+                                            </Link>
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                onClick={() => handleDelete(product._id, product.name)}
+                                            >
+                                                <Trash2 className="h-4 w-4 mr-1" />
+                                                Delete
+                                            </Button>
                                         </TableCell>
                                     </TableRow>
                                 ))
