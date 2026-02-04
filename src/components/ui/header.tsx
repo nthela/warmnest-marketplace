@@ -9,6 +9,7 @@ import { useAuthActions } from "@convex-dev/auth/react";
 import { useRouter } from "next/navigation";
 import { api } from "../../../convex/_generated/api";
 import { Search, ShoppingCart, User, Menu, LogOut, Store, Shield } from "lucide-react";
+import { useCart } from "@/contexts/cart-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -32,6 +33,7 @@ export function Header() {
     const { isAuthenticated } = useConvexAuth();
     const { signOut } = useAuthActions();
     const user = useQuery(api.users.currentUser);
+    const { getItemCount } = useCart();
 
     const isActive = (path: string) => {
         return pathname === path ? "text-primary font-bold" : "text-muted-foreground hover:text-primary transition-colors";
@@ -72,6 +74,9 @@ export function Header() {
                     <Link href="/track-order" className={isActive("/track-order")}>
                         Track Order
                     </Link>
+                    <Link href="/about" className={isActive("/about")}>
+                        About
+                    </Link>
                 </nav>
 
                 {/* Search Bar */}
@@ -95,9 +100,11 @@ export function Header() {
                     <Link href="/cart">
                         <Button variant="ghost" size="icon" className="relative">
                             <ShoppingCart className="h-5 w-5" />
-                            <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-[10px] font-bold text-primary-foreground flex items-center justify-center">
-                                0
-                            </span>
+                            {getItemCount() > 0 && (
+                                <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-[10px] font-bold text-primary-foreground flex items-center justify-center">
+                                    {getItemCount()}
+                                </span>
+                            )}
                         </Button>
                     </Link>
 
@@ -219,6 +226,9 @@ export function Header() {
                                 )}
                                 <Link href="/track-order" className={`text-lg font-medium ${pathname === "/track-order" ? "text-primary" : ""}`}>
                                     Track Order
+                                </Link>
+                                <Link href="/about" className={`text-lg font-medium ${pathname === "/about" ? "text-primary" : ""}`}>
+                                    About
                                 </Link>
                                 <hr className="my-2" />
                                 {isAuthenticated ? (

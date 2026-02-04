@@ -5,7 +5,8 @@ import { api } from "../../../../convex/_generated/api";
 import { Header } from "@/components/ui/header";
 import { Button } from "@/components/ui/button";
 import { useParams } from "next/navigation";
-import { ShoppingCart, Heart, Truck, ChevronLeft, ChevronRight, Store } from "lucide-react";
+import { ShoppingCart, Heart, Truck, ChevronLeft, ChevronRight, Store, Check } from "lucide-react";
+import { useCart } from "@/contexts/cart-context";
 import { Badge } from "@/components/ui/badge";
 import { Id } from "../../../../convex/_generated/dataModel";
 import { useState, useCallback } from "react";
@@ -15,7 +16,9 @@ export default function ProductPage() {
     const productId = params.id as Id<"products">;
 
     const product = useQuery(api.products.get, { id: productId });
+    const { addItem } = useCart();
     const [currentIndex, setCurrentIndex] = useState(0);
+    const [added, setAdded] = useState(false);
 
     // Touch/swipe handling
     const [touchStart, setTouchStart] = useState<number | null>(null);
@@ -164,8 +167,26 @@ export default function ProductPage() {
 
                         <div className="space-y-4 pt-6 border-t">
                             <div className="flex gap-4">
-                                <Button size="lg" className="flex-1 text-lg h-14">
-                                    <ShoppingCart className="mr-2 h-5 w-5" /> Add to Cart
+                                <Button
+                                    size="lg"
+                                    className="flex-1 text-lg h-14"
+                                    onClick={() => {
+                                        addItem({
+                                            productId: product._id,
+                                            name: product.name,
+                                            price: product.salePrice ?? product.price,
+                                            image: product.imageUrls?.[0] ?? "",
+                                            vendor: product.vendorName ?? "Unknown Seller",
+                                        });
+                                        setAdded(true);
+                                        setTimeout(() => setAdded(false), 2000);
+                                    }}
+                                >
+                                    {added ? (
+                                        <><Check className="mr-2 h-5 w-5" /> Added!</>
+                                    ) : (
+                                        <><ShoppingCart className="mr-2 h-5 w-5" /> Add to Cart</>
+                                    )}
                                 </Button>
                                 <Button size="lg" variant="outline" className="h-14 w-14 p-0">
                                     <Heart className="h-5 w-5" />
