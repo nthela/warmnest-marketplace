@@ -134,7 +134,7 @@ export default function AddProductPage() {
                 name: values.name,
                 description: values.description,
                 price: values.price,
-                salePrice: values.salePrice && values.salePrice !== "" ? Number(values.salePrice) : undefined,
+                salePrice: values.salePrice ? Number(values.salePrice) : undefined,
                 sku: values.sku || undefined,
                 stock: values.stock,
                 category: values.category,
