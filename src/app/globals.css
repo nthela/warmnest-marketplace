@@ -125,4 +125,7 @@
   h1, h2, h3, h4, h5, h6 {
     color: #111111;
   }
+  footer h1, footer h2, footer h3, footer h4, footer h5, footer h6 {
+    color: inherit;
+  }
 }

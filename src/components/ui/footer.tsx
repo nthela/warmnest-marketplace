@@ -12,7 +12,7 @@ function PaymentIcon({ name, children }: { name: string; children: React.ReactNo
 
 export function Footer() {
     return (
-        <footer className="text-white" style={{ backgroundColor: "#AD2731" }}>
+        <footer className="bg-black text-white">
             <div className="container mx-auto px-4 py-12">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                     {/* Brand & About */}
@@ -41,41 +41,41 @@ export function Footer() {
 
                     {/* Shop Links */}
                     <div>
-                        <h4 className="font-semibold text-lg mb-4">Shop</h4>
-                        <ul className="space-y-2 text-sm text-white/80">
-                            <li><Link href="/shop" className="hover:text-white transition-colors">All Products</Link></li>
-                            <li><Link href="/shop?category=all" className="hover:text-white transition-colors">Categories</Link></li>
-                            <li><Link href="/deals" className="hover:text-white transition-colors">Daily Deals</Link></li>
-                            <li><Link href="/shop?category=Electronics" className="hover:text-white transition-colors">Electronics</Link></li>
-                            <li><Link href="/shop?category=Fashion" className="hover:text-white transition-colors">Fashion</Link></li>
-                            <li><Link href="/shop?category=Home+%26+Living" className="hover:text-white transition-colors">Home & Living</Link></li>
+                        <h4 className="font-semibold text-lg mb-4 text-[#C8A165]">Shop</h4>
+                        <ul className="space-y-2 text-sm text-white/70">
+                            <li><Link href="/shop" className="hover:text-[#C8A165] transition-colors">All Products</Link></li>
+                            <li><Link href="/shop?category=all" className="hover:text-[#C8A165] transition-colors">Categories</Link></li>
+                            <li><Link href="/deals" className="hover:text-[#C8A165] transition-colors">Daily Deals</Link></li>
+                            <li><Link href="/shop?category=Electronics" className="hover:text-[#C8A165] transition-colors">Electronics</Link></li>
+                            <li><Link href="/shop?category=Fashion" className="hover:text-[#C8A165] transition-colors">Fashion</Link></li>
+                            <li><Link href="/shop?category=Home+%26+Living" className="hover:text-[#C8A165] transition-colors">Home & Living</Link></li>
                         </ul>
                     </div>
 
                     {/* Support Links */}
                     <div>
-                        <h4 className="font-semibold text-lg mb-4">Customer Service</h4>
-                        <ul className="space-y-2 text-sm text-white/80">
-                            <li><Link href="/track-order" className="hover:text-white transition-colors">Track Your Order</Link></li>
-                            <li><Link href="/returns" className="hover:text-white transition-colors">Returns & Refunds</Link></li>
-                            <li><Link href="/shipping" className="hover:text-white transition-colors">Shipping Information</Link></li>
-                            <li><Link href="/faq" className="hover:text-white transition-colors">FAQ</Link></li>
-                            <li><Link href="/contact" className="hover:text-white transition-colors">Contact Us</Link></li>
-                            <li><Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
-                            <li><Link href="/terms" className="hover:text-white transition-colors">Terms & Conditions</Link></li>
+                        <h4 className="font-semibold text-lg mb-4 text-[#C8A165]">Customer Service</h4>
+                        <ul className="space-y-2 text-sm text-white/70">
+                            <li><Link href="/track-order" className="hover:text-[#C8A165] transition-colors">Track Your Order</Link></li>
+                            <li><Link href="/returns" className="hover:text-[#C8A165] transition-colors">Returns & Refunds</Link></li>
+                            <li><Link href="/shipping" className="hover:text-[#C8A165] transition-colors">Shipping Information</Link></li>
+                            <li><Link href="/faq" className="hover:text-[#C8A165] transition-colors">FAQ</Link></li>
+                            <li><Link href="/contact" className="hover:text-[#C8A165] transition-colors">Contact Us</Link></li>
+                            <li><Link href="/privacy" className="hover:text-[#C8A165] transition-colors">Privacy Policy</Link></li>
+                            <li><Link href="/terms" className="hover:text-[#C8A165] transition-colors">Terms & Conditions</Link></li>
                         </ul>
                     </div>
 
                     {/* Sell & Payment */}
                     <div>
-                        <h4 className="font-semibold text-lg mb-4">Sell on WarmNest</h4>
-                        <ul className="space-y-2 text-sm text-white/80 mb-6">
-                            <li><Link href="/vendors/register" className="hover:text-white transition-colors">Become a Vendor</Link></li>
-                            <li><Link href="/vendors/dashboard" className="hover:text-white transition-colors">Vendor Dashboard</Link></li>
-                            <li><Link href="/seller-guide" className="hover:text-white transition-colors">Seller Guide</Link></li>
+                        <h4 className="font-semibold text-lg mb-4 text-[#C8A165]">Sell on WarmNest</h4>
+                        <ul className="space-y-2 text-sm text-white/70 mb-6">
+                            <li><Link href="/vendors/register" className="hover:text-[#C8A165] transition-colors">Become a Vendor</Link></li>
+                            <li><Link href="/vendors/dashboard" className="hover:text-[#C8A165] transition-colors">Vendor Dashboard</Link></li>
+                            <li><Link href="/seller-guide" className="hover:text-[#C8A165] transition-colors">Seller Guide</Link></li>
                         </ul>
 
-                        <h4 className="font-semibold text-lg mb-3">We Accept</h4>
+                        <h4 className="font-semibold text-lg mb-3 text-[#C8A165]">We Accept</h4>
                         <div className="flex flex-wrap gap-2">
                             <PaymentIcon name="Visa">
                                 <svg viewBox="0 0 48 32" className="h-5 w-auto" fill="none">
@@ -117,9 +117,9 @@ export function Footer() {
                 <div className="container mx-auto px-4 py-4 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-white/70">
                     <p>&copy; {new Date().getFullYear()} WarmNest Marketplace. All rights reserved.</p>
                     <div className="flex items-center gap-4">
-                        <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
-                        <Link href="/terms" className="hover:text-white transition-colors">Terms</Link>
-                        <Link href="/sitemap" className="hover:text-white transition-colors">Sitemap</Link>
+                        <Link href="/privacy" className="hover:text-[#C8A165] transition-colors">Privacy</Link>
+                        <Link href="/terms" className="hover:text-[#C8A165] transition-colors">Terms</Link>
+                        <Link href="/sitemap" className="hover:text-[#C8A165] transition-colors">Sitemap</Link>
                     </div>
                 </div>
             </div>
