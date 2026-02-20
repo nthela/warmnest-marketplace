@@ -1,30 +1,26 @@
-export const PAYFAST_URL = "https://sandbox.payfast.co.za/eng/process"; // Sandbox
+const PAYFAST_SANDBOX_URL = "https://sandbox.payfast.co.za/eng/process";
+const PAYFAST_LIVE_URL = "https://www.payfast.co.za/eng/process";
 
-export interface PayFastData {
-    merchant_id: string;
-    merchant_key: string;
-    return_url: string;
-    cancel_url: string;
-    notify_url: string;
-    amount: number;
-    item_name: string;
-    email_address?: string;
+export function getPayFastUrl(): string {
+    const isSandbox = process.env.NEXT_PUBLIC_PAYFAST_SANDBOX === "true";
+    return isSandbox ? PAYFAST_SANDBOX_URL : PAYFAST_LIVE_URL;
 }
 
-export function generatePaymentForm(data: Partial<PayFastData>) {
-    // In production, you would fetch secrets from Convex env variables via ACTION
-    // params: merchant_id, merchant_key, passphrase (for signature)
+export function submitPayFastForm(data: Record<string, string>): void {
+    const payFastUrl = getPayFastUrl();
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = payFastUrl;
 
-    // Mock signing for demo
-    const params = {
-        ...data,
-        merchant_id: "10000100", // Sandbox ID
-        merchant_key: "46f0cd694581a", // Sandbox Key
-        return_url: `${process.env.NEXT_PUBLIC_APP_URL}/checkout/success`,
-        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/checkout/cancel`,
-        notify_url: `${process.env.NEXT_PUBLIC_CONVEX_URL}/payfast/notify`,
-    };
+    for (const [key, value] of Object.entries(data)) {
+        if (value === undefined || value === null) continue;
+        const input = document.createElement("input");
+        input.type = "hidden";
+        input.name = key;
+        input.value = String(value);
+        form.appendChild(input);
+    }
 
-    // Convert to form data string or object for frontend form
-    return params;
+    document.body.appendChild(form);
+    form.submit();
 }

@@ -13,6 +13,8 @@ import type * as admin from "../admin.js";
 import type * as auth from "../auth.js";
 import type * as http from "../http.js";
 import type * as orders from "../orders.js";
+import type * as payfast from "../payfast.js";
+import type * as payfastWebhook from "../payfastWebhook.js";
 import type * as products from "../products.js";
 import type * as users from "../users.js";
 import type * as vendors from "../vendors.js";
@@ -30,6 +32,8 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   http: typeof http;
   orders: typeof orders;
+  payfast: typeof payfast;
+  payfastWebhook: typeof payfastWebhook;
   products: typeof products;
   users: typeof users;
   vendors: typeof vendors;

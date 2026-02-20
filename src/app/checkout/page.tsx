@@ -6,12 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { useMutation } from "convex/react";
+import { useAction, useMutation } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
 import { getShippingRates, ShippingRate } from "@/lib/shiprazor";
-import { generatePaymentForm } from "@/lib/payfast";
+import { submitPayFastForm } from "@/lib/payfast";
 import { useCart } from "@/contexts/cart-context";
 import Link from "next/link";
 
@@ -28,9 +27,9 @@ const SA_PROVINCES = [
 ];
 
 export default function CheckoutPage() {
-    const router = useRouter();
-    const { items, getTotal, clearCart } = useCart();
+    const { items, getTotal } = useCart();
     const createOrder = useMutation(api.orders.create);
+    const buildPaymentData = useAction(api.payfast.buildPaymentData);
 
     const [step, setStep] = useState<"address" | "shipping" | "payment">("address");
     const [address, setAddress] = useState({ street: "", city: "", province: "Gauteng", code: "" });
@@ -60,8 +59,11 @@ export default function CheckoutPage() {
         setPlacing(true);
 
         try {
+            const totalAmount = cartTotal + selectedRate.price;
+
+            // 1. Create order in Convex (status: pending)
             const orderId = await createOrder({
-                totalAmount: cartTotal + selectedRate.price,
+                totalAmount,
                 shippingAddress: {
                     street: address.street,
                     city: address.city,
@@ -76,17 +78,21 @@ export default function CheckoutPage() {
                 })),
             });
 
-            generatePaymentForm({
-                amount: cartTotal + selectedRate.price,
-                item_name: "WarmNest Order",
+            // 2. Get signed PayFast form data from Convex action
+            const paymentData = await buildPaymentData({
+                orderId: orderId as string,
+                amount: totalAmount,
+                itemName: `WarmNest Order #${(orderId as string).slice(-8)}`,
             });
 
-            clearCart();
-            router.push(`/checkout/success?orderId=${orderId}`);
+            // 3. Store orderId so success page can clear the cart
+            sessionStorage.setItem("warmnest-pending-order", orderId as string);
+
+            // 4. Submit hidden form to PayFast (navigates away from page)
+            submitPayFastForm(paymentData as Record<string, string>);
         } catch (error) {
-            console.error("Failed to create order:", error);
-            alert("Something went wrong placing your order. Please try again.");
-        } finally {
+            console.error("Failed to initiate payment:", error);
+            alert("Something went wrong initiating payment. Please try again.");
             setPlacing(false);
         }
     };
@@ -205,7 +211,7 @@ export default function CheckoutPage() {
                                     </div>
 
                                     <Button size="lg" className="w-full" onClick={handlePayment} disabled={placing}>
-                                        {placing ? "Placing Order..." : "Pay Securely via PayFast"}
+                                        {placing ? "Redirecting to PayFast..." : "Pay Securely via PayFast"}
                                     </Button>
                                     <p className="text-xs text-center text-muted-foreground">Encryption by PayFast. Cards & EFT accepted.</p>
                                 </CardContent>
