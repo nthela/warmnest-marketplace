@@ -38,7 +38,11 @@ export default defineSchema({
     isActive: v.boolean(),
   })
     .index("by_vendor", ["vendorId"])
-    .index("by_category", ["category"]),
+    .index("by_category", ["category"])
+    .searchIndex("search_name", {
+      searchField: "name",
+      filterFields: ["isActive", "category"],
+    }),
 
   orders: defineTable({
     userId: v.optional(v.id("users")), // Optional for guest checkout
@@ -62,6 +66,14 @@ export default defineSchema({
     }),
     createdAt: v.number(), // Timestamp
   }).index("by_user", ["userId"]),
+
+  vendorWaitlist: defineTable({
+    name: v.string(),
+    email: v.string(),
+    location: v.string(),
+    businessType: v.union(v.literal("sole_proprietor"), v.literal("registered_business")),
+    createdAt: v.number(),
+  }).index("by_email", ["email"]),
 
   orderItems: defineTable({
     orderId: v.id("orders"),

@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 import { useConvexAuth, useQuery } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useRouter } from "next/navigation";
@@ -34,6 +35,14 @@ export function Header() {
     const { signOut } = useAuthActions();
     const user = useQuery(api.users.currentUser);
     const { getItemCount } = useCart();
+    const [searchQuery, setSearchQuery] = useState("");
+
+    function handleSearch(e: React.FormEvent) {
+        e.preventDefault();
+        if (searchQuery.trim()) {
+            router.push(`/shop?search=${encodeURIComponent(searchQuery.trim())}`);
+        }
+    }
 
     const isActive = (path: string) => {
         return pathname === path ? "text-primary font-bold" : "text-muted-foreground hover:text-primary transition-colors";
@@ -80,16 +89,18 @@ export function Header() {
                 </nav>
 
                 {/* Search Bar */}
-                <div className="hidden md:flex flex-1 max-w-sm items-center gap-2">
+                <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-sm items-center gap-2">
                     <div className="relative w-full">
                         <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input
                             type="search"
                             placeholder="Search products..."
                             className="w-full pl-8 bg-muted/50"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
-                </div>
+                </form>
 
                 {/* Actions */}
                 <div className="flex items-center gap-2">

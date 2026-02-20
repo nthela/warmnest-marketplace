@@ -99,7 +99,32 @@ export const createProduct = mutation({
             .withIndex("by_user", (q) => q.eq("userId", userId))
             .first();
 
+        // Allow admin to create products (uses first vendor or throws)
+        const user = await ctx.db.get(userId);
         if (!vendor || vendor.status !== "approved") {
+            if (user?.role === "admin") {
+                // Admin can create products — use first approved vendor as fallback
+                const anyVendor = await ctx.db
+                    .query("vendors")
+                    .filter((q) => q.eq(q.field("status"), "approved"))
+                    .first();
+                if (anyVendor) {
+                    const productId = await ctx.db.insert("products", {
+                        vendorId: anyVendor._id,
+                        name: args.name,
+                        description: args.description,
+                        price: args.price,
+                        salePrice: args.salePrice,
+                        sku: args.sku,
+                        stock: args.stock,
+                        category: args.category,
+                        images: args.images,
+                        tags: args.tags ?? [],
+                        isActive: true,
+                    });
+                    return productId;
+                }
+            }
             throw new Error("Vendor not approved");
         }
 
@@ -209,7 +234,11 @@ export const deleteProduct = mutation({
 export const listPendingVendors = query({
     args: {},
     handler: async (ctx) => {
-        // Ideally check if user is admin
+        const userId = await getAuthUserId(ctx);
+        if (!userId) throw new Error("Unauthorized");
+        const user = await ctx.db.get(userId);
+        if (!user || user.role !== "admin") throw new Error("Admin access required");
+
         return await ctx.db
             .query("vendors")
             .filter((q) => q.eq(q.field("status"), "pending"))
@@ -220,7 +249,14 @@ export const listPendingVendors = query({
 export const approveVendor = mutation({
     args: { vendorId: v.id("vendors") },
     handler: async (ctx, args) => {
-        // Ideally check if user is admin
+        const userId = await getAuthUserId(ctx);
+        if (!userId) throw new Error("Unauthorized");
+        const user = await ctx.db.get(userId);
+        if (!user || user.role !== "admin") throw new Error("Admin access required");
+
+        const vendor = await ctx.db.get(args.vendorId);
+        if (!vendor) throw new Error("Vendor not found");
         await ctx.db.patch(args.vendorId, { status: "approved" });
+        await ctx.db.patch(vendor.userId, { role: "vendor", vendorId: args.vendorId });
     },
 });

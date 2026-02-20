@@ -25,6 +25,44 @@ export const list = query({
         paginationOpts: paginationOptsValidator,
     },
     handler: async (ctx, args) => {
+        // If search query provided, use the search index
+        if (args.search) {
+            const searchResults = await ctx.db
+                .query("products")
+                .withSearchIndex("search_name", (q) => {
+                    let sq = q.search("name", args.search!);
+                    if (args.category) {
+                        sq = sq.eq("category", args.category);
+                    }
+                    sq = sq.eq("isActive", true);
+                    return sq;
+                })
+                .collect();
+
+            // Manual pagination for search results
+            const cursor = args.paginationOpts.cursor;
+            const numItems = args.paginationOpts.numItems;
+            const startIndex = cursor ? parseInt(cursor) : 0;
+            const page = searchResults.slice(startIndex, startIndex + numItems);
+            const nextCursor = startIndex + numItems < searchResults.length
+                ? String(startIndex + numItems)
+                : null;
+
+            const pageWithUrls = await Promise.all(
+                page.map(async (product) => {
+                    const imageUrls = await resolveImageUrls(ctx, product.images);
+                    return { ...product, imageUrls: imageUrls.filter(Boolean) as string[] };
+                })
+            );
+
+            return {
+                page: pageWithUrls,
+                isDone: nextCursor === null,
+                continueCursor: nextCursor ?? "",
+            };
+        }
+
+        // Normal listing with index-based query
         let q = ctx.db.query("products").withIndex("by_category");
 
         if (args.category !== undefined) {
@@ -35,7 +73,6 @@ export const list = query({
 
         const results = await q.filter(q => q.eq(q.field("isActive"), true)).paginate(args.paginationOpts);
 
-        // Resolve image storage IDs to URLs
         const pageWithUrls = await Promise.all(
             results.page.map(async (product) => {
                 const imageUrls = await resolveImageUrls(ctx, product.images);
@@ -44,6 +81,27 @@ export const list = query({
         );
 
         return { ...results, page: pageWithUrls };
+    },
+});
+
+export const featured = query({
+    args: {},
+    handler: async (ctx) => {
+        const products = await ctx.db
+            .query("products")
+            .withIndex("by_category")
+            .filter((q) => q.eq(q.field("isActive"), true))
+            .order("desc")
+            .take(8);
+
+        const withUrls = await Promise.all(
+            products.map(async (product) => {
+                const imageUrls = await resolveImageUrls(ctx, product.images);
+                return { ...product, imageUrls: imageUrls.filter(Boolean) as string[] };
+            })
+        );
+
+        return withUrls;
     },
 });
 

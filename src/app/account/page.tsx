@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation } from "convex/react";
+import { useQuery } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvexAuth } from "convex/react";
 import { api } from "../../../convex/_generated/api";
@@ -18,7 +18,7 @@ export default function AccountPage() {
     const router = useRouter();
     const user = useQuery(api.users.currentUser);
     const vendor = useQuery(api.vendors.getCurrentVendor);
-    const makeAdmin = useMutation(api.users.makeAdmin);
+
 
     if (authLoading) {
         return (
@@ -96,19 +96,6 @@ export default function AccountPage() {
                                     My Cart
                                 </Button>
                             </Link>
-                            {user?.role !== "admin" && (
-                                <Button
-                                    variant="outline"
-                                    className="w-full justify-start gap-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
-                                    onClick={async () => {
-                                        await makeAdmin();
-                                        window.location.reload();
-                                    }}
-                                >
-                                    <Shield className="h-4 w-4" />
-                                    Promote to Admin (temp)
-                                </Button>
-                            )}
                             {user?.role === "admin" && (
                                 <Link href="/admin" className="block">
                                     <Button variant="outline" className="w-full justify-start gap-2">
