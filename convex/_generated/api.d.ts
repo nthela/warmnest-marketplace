@@ -16,6 +16,7 @@ import type * as orders from "../orders.js";
 import type * as payfast from "../payfast.js";
 import type * as payfastWebhook from "../payfastWebhook.js";
 import type * as products from "../products.js";
+import type * as siteSettings from "../siteSettings.js";
 import type * as users from "../users.js";
 import type * as vendors from "../vendors.js";
 import type * as waitlist from "../waitlist.js";
@@ -35,6 +36,7 @@ declare const fullApi: ApiFromModules<{
   payfast: typeof payfast;
   payfastWebhook: typeof payfastWebhook;
   products: typeof products;
+  siteSettings: typeof siteSettings;
   users: typeof users;
   vendors: typeof vendors;
   waitlist: typeof waitlist;

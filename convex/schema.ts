@@ -84,4 +84,9 @@ export default defineSchema({
   }).index("by_order", ["orderId"])
     .index("by_vendor", ["vendorId"]),
 
+  siteSettings: defineTable({
+    key: v.string(), // e.g. "heroBanner"
+    value: v.string(), // storage ID or URL
+  }).index("by_key", ["key"]),
+
 });

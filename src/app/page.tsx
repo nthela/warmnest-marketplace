@@ -9,10 +9,12 @@ import { ArrowRight, ShoppingCart, Check } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useCart } from "@/contexts/cart-context";
+import { ProductImageCarousel } from "@/components/ui/product-image-carousel";
 import { useState } from "react";
 
 export default function Home() {
     const products = useQuery(api.products.featured);
+    const heroBanner = useQuery(api.siteSettings.getHeroBanner);
     const { addItem } = useCart();
     const [addedId, setAddedId] = useState<string | null>(null);
 
@@ -34,12 +36,25 @@ export default function Home() {
 
             <main className="flex-1">
                 {/* Hero Section */}
-                <section className="relative bg-primary/10 py-20 lg:py-32 overflow-hidden">
+                <section
+                    className="relative py-20 lg:py-32 overflow-hidden bg-cover bg-center"
+                    style={heroBanner ? { backgroundImage: `url(${heroBanner})` } : undefined}
+                >
+                    {/* Dark overlay when banner is present for text readability */}
+                    {heroBanner && <div className="absolute inset-0 bg-black/50" />}
+                    {/* Fallback gradient blobs when no banner */}
+                    {!heroBanner && (
+                        <>
+                            <div className="absolute inset-0 bg-primary/10" />
+                            <div className="absolute top-0 left-0 w-96 h-96 bg-primary/20 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
+                            <div className="absolute bottom-0 right-0 w-96 h-96 bg-secondary/30 rounded-full blur-3xl translate-x-1/2 translate-y-1/2" />
+                        </>
+                    )}
                     <div className="container mx-auto px-4 relative z-10 flex flex-col items-center text-center">
-                        <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-foreground mb-6">
-                            Discover Unique Products from <span className="text-primary">Trusted Vendors</span>
+                        <h1 className={`text-4xl md:text-6xl font-extrabold tracking-tight mb-6 ${heroBanner ? "text-white" : "text-foreground"}`}>
+                            Discover Unique Products from <span className={heroBanner ? "text-yellow-300" : "text-primary"}>Trusted Vendors</span>
                         </h1>
-                        <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mb-8">
+                        <p className={`text-lg md:text-xl max-w-2xl mb-8 ${heroBanner ? "text-white/90" : "text-muted-foreground"}`}>
                             WarmNest is South Africa&apos;s premier marketplace connecting you with the best local sellers. Shop fashion, home decor, electronics, and more.
                         </p>
                         <div className="flex gap-4">
@@ -49,14 +64,12 @@ export default function Home() {
                                 </Button>
                             </Link>
                             <Link href="/vendors/register#waitlist-form">
-                                <Button size="lg" variant="outline" className="h-12 px-8 text-base">
+                                <Button size="lg" variant={heroBanner ? "secondary" : "outline"} className="h-12 px-8 text-base">
                                     Become a Seller
                                 </Button>
                             </Link>
                         </div>
                     </div>
-                    <div className="absolute top-0 left-0 w-96 h-96 bg-primary/20 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
-                    <div className="absolute bottom-0 right-0 w-96 h-96 bg-secondary/30 rounded-full blur-3xl translate-x-1/2 translate-y-1/2" />
                 </section>
 
                 {/* Categories Section */}
@@ -87,27 +100,24 @@ export default function Home() {
                                 View All <ArrowRight className="h-4 w-4" />
                             </Link>
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                        <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory no-scrollbar -mx-4 px-4 pb-4 sm:mx-0 sm:px-0 sm:pb-0 sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 sm:gap-6 sm:overflow-visible">
                             {products === undefined ? (
                                 Array.from({ length: 4 }).map((_, i) => (
-                                    <div key={i} className="h-80 bg-gray-200 animate-pulse rounded-lg" />
+                                    <div key={i} className="min-w-[72%] flex-shrink-0 snap-start sm:min-w-0 h-80 bg-gray-200 animate-pulse rounded-lg" />
                                 ))
                             ) : products.length === 0 ? (
-                                <div className="col-span-full text-center py-8 text-muted-foreground">
+                                <div className="min-w-full text-center py-8 text-muted-foreground">
                                     No products yet. Check back soon!
                                 </div>
                             ) : (
                                 products.map((product) => (
-                                    <Card key={product._id} className="overflow-hidden group hover:shadow-lg transition-shadow">
+                                    <Card key={product._id} className="min-w-[72%] flex-shrink-0 snap-start sm:min-w-0 overflow-hidden group hover:shadow-lg transition-shadow">
                                         <Link href={`/shop/${product._id}`}>
                                             <div className="aspect-square bg-muted relative">
-                                                <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-                                                    {product.imageUrls?.[0] ? (
-                                                        <img src={product.imageUrls[0]} alt={product.name} className="object-cover w-full h-full" />
-                                                    ) : (
-                                                        "No Image"
-                                                    )}
-                                                </div>
+                                                <ProductImageCarousel
+                                                    images={product.imageUrls ?? []}
+                                                    alt={product.name}
+                                                />
                                             </div>
                                         </Link>
                                         <CardContent className="p-4">

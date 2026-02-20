@@ -11,6 +11,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense, useState } from "react";
 import { useCart } from "@/contexts/cart-context";
 import { ShoppingCart, Check } from "lucide-react";
+import { ProductImageCarousel } from "@/components/ui/product-image-carousel";
 
 function ShopContent() {
     const searchParams = useSearchParams();
@@ -150,25 +151,22 @@ function ShopContent() {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory no-scrollbar -mx-4 px-4 pb-4 sm:mx-0 sm:px-0 sm:pb-0 sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:gap-6 sm:overflow-visible">
                         {status === "LoadingFirstPage" ? (
                             Array.from({ length: 8 }).map((_, i) => (
-                                <div key={i} className="h-80 bg-gray-200 animate-pulse rounded-lg" />
+                                <div key={i} className="min-w-[72%] flex-shrink-0 snap-start sm:min-w-0 h-80 bg-gray-200 animate-pulse rounded-lg" />
                             ))
                         ) : filteredResults?.length === 0 ? (
-                            <div className="col-span-full text-center py-12">No products found.</div>
+                            <div className="min-w-full text-center py-12">No products found.</div>
                         ) : (
                             filteredResults?.map((product) => (
-                                <Card key={product._id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                                <Card key={product._id} className="min-w-[72%] flex-shrink-0 snap-start sm:min-w-0 overflow-hidden group hover:shadow-lg transition-shadow">
                                     <Link href={`/shop/${product._id}`}>
                                         <div className="aspect-square bg-muted relative">
-                                            <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-                                                {product.imageUrls?.[0] ? (
-                                                    <img src={product.imageUrls[0]} alt={product.name} className="object-cover w-full h-full" />
-                                                ) : (
-                                                    "No Image"
-                                                )}
-                                            </div>
+                                            <ProductImageCarousel
+                                                images={product.imageUrls ?? []}
+                                                alt={product.name}
+                                            />
                                         </div>
                                     </Link>
                                     <CardContent className="p-4">

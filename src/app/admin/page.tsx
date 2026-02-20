@@ -7,14 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Id } from "../../../convex/_generated/dataModel";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import {
     LayoutDashboard, Users, Store, Package, ShoppingBag, ClipboardList,
-    BarChart3, Trash2, Check, X, Eye, EyeOff, Sparkles
+    BarChart3, Trash2, Check, X, Eye, EyeOff, Sparkles, Settings, Upload, ImageIcon
 } from "lucide-react";
 
-type Tab = "overview" | "waitlist" | "users" | "vendors" | "products" | "orders" | "analytics";
+type Tab = "overview" | "waitlist" | "users" | "vendors" | "products" | "orders" | "analytics" | "settings";
 
 const ORDER_STATUSES = ["pending", "paid", "processing", "shipped", "completed", "cancelled"] as const;
 
@@ -42,6 +42,7 @@ export default function AdminDashboard() {
         { id: "products", label: "Products", icon: <Package className="h-4 w-4" /> },
         { id: "orders", label: "Orders", icon: <ShoppingBag className="h-4 w-4" /> },
         { id: "analytics", label: "Analytics", icon: <BarChart3 className="h-4 w-4" /> },
+        { id: "settings", label: "Settings", icon: <Settings className="h-4 w-4" /> },
     ];
 
     return (
@@ -94,6 +95,7 @@ export default function AdminDashboard() {
                     {tab === "products" && <ProductsTab />}
                     {tab === "orders" && <OrdersTab />}
                     {tab === "analytics" && <AnalyticsTab />}
+                    {tab === "settings" && <SettingsTab />}
                 </main>
             </div>
         </div>
@@ -667,6 +669,113 @@ function AnalyticsTab() {
                     </CardContent>
                 </Card>
             </div>
+        </div>
+    );
+}
+
+// ─── SETTINGS ──────────────────────────────────────────────
+
+function SettingsTab() {
+    const heroBanner = useQuery(api.siteSettings.getHeroBanner);
+    const generateUploadUrl = useMutation(api.siteSettings.generateUploadUrl);
+    const setHeroBanner = useMutation(api.siteSettings.setHeroBanner);
+    const removeHeroBanner = useMutation(api.siteSettings.removeHeroBanner);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [uploading, setUploading] = useState(false);
+
+    async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setUploading(true);
+        try {
+            const uploadUrl = await generateUploadUrl();
+            const result = await fetch(uploadUrl, {
+                method: "POST",
+                headers: { "Content-Type": file.type },
+                body: file,
+            });
+            const { storageId } = await result.json();
+            await setHeroBanner({ storageId });
+        } catch (err) {
+            console.error("Upload failed:", err);
+            alert("Failed to upload banner. Please try again.");
+        } finally {
+            setUploading(false);
+            if (fileInputRef.current) fileInputRef.current.value = "";
+        }
+    }
+
+    return (
+        <div>
+            <h1 className="text-2xl font-bold mb-6">Site Settings</h1>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-base flex items-center gap-2">
+                        <ImageIcon className="h-5 w-5" />
+                        Home Page Hero Banner
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                        Upload a background image for the hero section on the home page. Recommended size: 1920x800px.
+                    </p>
+
+                    {heroBanner ? (
+                        <div className="space-y-3">
+                            <div className="relative rounded-lg overflow-hidden border">
+                                <img
+                                    src={heroBanner}
+                                    alt="Current hero banner"
+                                    className="w-full h-48 object-cover"
+                                />
+                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                                    <span className="text-white font-bold text-lg">Current Banner</span>
+                                </div>
+                            </div>
+                            <div className="flex gap-2">
+                                <Button
+                                    variant="outline"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={uploading}
+                                >
+                                    <Upload className="h-4 w-4 mr-2" />
+                                    {uploading ? "Uploading..." : "Replace Banner"}
+                                </Button>
+                                <Button
+                                    variant="destructive"
+                                    onClick={async () => {
+                                        if (confirm("Remove the hero banner?")) {
+                                            await removeHeroBanner();
+                                        }
+                                    }}
+                                >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Remove
+                                </Button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div
+                            onClick={() => fileInputRef.current?.click()}
+                            className="border-2 border-dashed rounded-lg p-12 text-center cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors"
+                        >
+                            <Upload className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
+                            <p className="font-medium">{uploading ? "Uploading..." : "Click to upload a banner image"}</p>
+                            <p className="text-sm text-muted-foreground mt-1">JPG, PNG, or WebP. Max 5MB.</p>
+                        </div>
+                    )}
+
+                    <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleUpload}
+                        className="hidden"
+                    />
+                </CardContent>
+            </Card>
         </div>
     );
 }
