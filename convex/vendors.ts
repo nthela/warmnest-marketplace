@@ -53,7 +53,7 @@ export const register = mutation({
             slug: args.slug,
             description: args.description,
             status: "pending",
-            commissionRate: 0.1, // Default 10%
+            commissionRate: 0.12, // Default 12%
         });
 
         // Optionally update user role to vendor-pending or similar if we strictly separate roles
@@ -164,7 +164,10 @@ export const getProducts = query({
             .withIndex("by_vendor", (q) => q.eq("vendorId", vendor._id))
             .collect();
 
-        return products;
+        return products.map((p) => ({
+            ...p,
+            commissionRate: vendor.commissionRate,
+        }));
     },
 });
 

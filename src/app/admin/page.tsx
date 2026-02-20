@@ -414,61 +414,72 @@ function ProductsTab() {
                                 <TableHead>Name</TableHead>
                                 <TableHead>Vendor</TableHead>
                                 <TableHead>Price</TableHead>
+                                <TableHead>Cost (Commission)</TableHead>
+                                <TableHead>Profit</TableHead>
                                 <TableHead>Stock</TableHead>
-                                <TableHead>Category</TableHead>
                                 <TableHead>Active</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {products === undefined ? (
-                                <TableRow><TableCell colSpan={7} className="text-center">Loading...</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={8} className="text-center">Loading...</TableCell></TableRow>
                             ) : products.length === 0 ? (
-                                <TableRow><TableCell colSpan={7} className="text-center py-8">No products.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={8} className="text-center py-8">No products.</TableCell></TableRow>
                             ) : (
-                                products.map((p) => (
-                                    <TableRow key={p._id} className={!p.isActive ? "opacity-50" : ""}>
-                                        <TableCell className="font-medium">{p.name}</TableCell>
-                                        <TableCell>{p.vendorName}</TableCell>
-                                        <TableCell>
-                                            {p.salePrice ? (
-                                                <span>
-                                                    <span className="text-red-600 font-medium">R {p.salePrice}</span>
-                                                    <span className="text-xs text-muted-foreground line-through ml-1">R {p.price}</span>
+                                products.map((p) => {
+                                    const sellingPrice = p.salePrice ?? p.price;
+                                    const rate = p.commissionRate ?? 0.12;
+                                    const commission = sellingPrice * rate;
+                                    const profit = sellingPrice - commission;
+                                    return (
+                                        <TableRow key={p._id} className={!p.isActive ? "opacity-50" : ""}>
+                                            <TableCell className="font-medium">{p.name}</TableCell>
+                                            <TableCell>{p.vendorName}</TableCell>
+                                            <TableCell>
+                                                {p.salePrice ? (
+                                                    <span>
+                                                        <span className="text-red-600 font-medium">R {p.salePrice}</span>
+                                                        <span className="text-xs text-muted-foreground line-through ml-1">R {p.price}</span>
+                                                    </span>
+                                                ) : (
+                                                    `R ${p.price}`
+                                                )}
+                                            </TableCell>
+                                            <TableCell>
+                                                <span className="text-red-500">R {commission.toFixed(2)}</span>
+                                                <span className="text-xs text-muted-foreground ml-1">({(rate * 100).toFixed(0)}%)</span>
+                                            </TableCell>
+                                            <TableCell className="text-green-600 font-medium">R {profit.toFixed(2)}</TableCell>
+                                            <TableCell>{p.stock}</TableCell>
+                                            <TableCell>
+                                                <span className={`text-xs font-medium ${p.isActive ? "text-green-600" : "text-red-500"}`}>
+                                                    {p.isActive ? "Yes" : "No"}
                                                 </span>
-                                            ) : (
-                                                `R ${p.price}`
-                                            )}
-                                        </TableCell>
-                                        <TableCell>{p.stock}</TableCell>
-                                        <TableCell>{p.category}</TableCell>
-                                        <TableCell>
-                                            <span className={`text-xs font-medium ${p.isActive ? "text-green-600" : "text-red-500"}`}>
-                                                {p.isActive ? "Yes" : "No"}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell className="text-right space-x-1">
-                                            <Button
-                                                size="sm"
-                                                variant="outline"
-                                                onClick={() => toggleActive({ productId: p._id })}
-                                            >
-                                                {p.isActive ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                                            </Button>
-                                            <Button
-                                                size="sm"
-                                                variant="destructive"
-                                                onClick={() => {
-                                                    if (confirm(`Delete "${p.name}"?`)) {
-                                                        deleteProduct({ productId: p._id });
-                                                    }
-                                                }}
-                                            >
-                                                <Trash2 className="h-3 w-3" />
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))
+                                            </TableCell>
+                                            <TableCell className="text-right space-x-1">
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    onClick={() => toggleActive({ productId: p._id })}
+                                                >
+                                                    {p.isActive ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="destructive"
+                                                    onClick={() => {
+                                                        if (confirm(`Delete "${p.name}"?`)) {
+                                                            deleteProduct({ productId: p._id });
+                                                        }
+                                                    }}
+                                                >
+                                                    <Trash2 className="h-3 w-3" />
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    );
+                                })
                             )}
                         </TableBody>
                     </Table>

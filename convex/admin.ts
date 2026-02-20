@@ -82,6 +82,7 @@ export const getAllProducts = query({
                 return {
                     ...product,
                     vendorName: vendor?.storeName ?? "Unknown",
+                    commissionRate: vendor?.commissionRate ?? 0.12,
                 };
             })
         );
@@ -357,7 +358,7 @@ export const grantWish = mutation({
             slug,
             description: `Vendor from ${entry.location}`,
             status: "approved",
-            commissionRate: 0.1,
+            commissionRate: 0.12,
         });
 
         // Update user role to vendor

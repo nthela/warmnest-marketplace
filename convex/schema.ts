@@ -19,7 +19,7 @@ export default defineSchema({
     description: v.optional(v.string()),
     logoUrl: v.optional(v.string()),
     status: v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected")),
-    commissionRate: v.number(), // e.g., 0.10 for 10%
+    commissionRate: v.number(), // e.g., 0.12 for 12%
   })
     .index("by_user", ["userId"])
     .index("by_slug", ["slug"]),

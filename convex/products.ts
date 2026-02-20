@@ -116,7 +116,8 @@ export const get = query({
         // Fetch vendor info
         const vendor = await ctx.db.get(product.vendorId);
         const vendorName = vendor?.storeName ?? "Unknown Seller";
+        const commissionRate = vendor?.commissionRate ?? 0.12;
 
-        return { ...product, imageUrls: imageUrls.filter(Boolean) as string[], vendorName };
+        return { ...product, imageUrls: imageUrls.filter(Boolean) as string[], vendorName, commissionRate };
     },
 });
