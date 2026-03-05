@@ -11,7 +11,7 @@ import { useState, useRef } from "react";
 import Link from "next/link";
 import {
     LayoutDashboard, Users, Store, Package, ShoppingBag, ClipboardList,
-    BarChart3, Trash2, Check, X, Eye, EyeOff, Sparkles, Settings, Upload, ImageIcon, Type, Pencil, Plus, List, Mail, Phone, MapPin, Globe
+    BarChart3, Trash2, Check, X, Eye, EyeOff, Sparkles, Settings, Upload, ImageIcon, Type, Pencil, Plus, List, Mail, Phone, MapPin, Globe, Search
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -397,8 +397,32 @@ function VendorsTab() {
 
 function ProductsTab() {
     const products = useQuery(api.admin.getAllProducts);
+    const categories = useQuery(api.siteSettings.getCategories);
     const toggleActive = useMutation(api.admin.toggleProductActive);
     const deleteProduct = useMutation(api.admin.deleteProduct);
+
+    const [search, setSearch] = useState("");
+    const [catFilter, setCatFilter] = useState("");
+    const [sortBy, setSortBy] = useState<"name" | "price" | "stock" | "newest">("newest");
+    const [statusFilter, setStatusFilter] = useState<"" | "active" | "inactive">("");
+
+    const filtered = (products ?? []).filter((p) => {
+        if (search) {
+            const q = search.toLowerCase();
+            if (!p.name.toLowerCase().includes(q) && !p.vendorName?.toLowerCase().includes(q)) return false;
+        }
+        if (catFilter && p.category !== catFilter) return false;
+        if (statusFilter === "active" && !p.isActive) return false;
+        if (statusFilter === "inactive" && p.isActive) return false;
+        return true;
+    }).sort((a, b) => {
+        switch (sortBy) {
+            case "name": return a.name.localeCompare(b.name);
+            case "price": return (a.salePrice ?? a.price) - (b.salePrice ?? b.price);
+            case "stock": return a.stock - b.stock;
+            default: return 0;
+        }
+    });
 
     return (
         <div>
@@ -408,6 +432,51 @@ function ProductsTab() {
                     <Button>+ Add Product</Button>
                 </Link>
             </div>
+
+            {/* Search & Filters */}
+            <div className="flex flex-wrap gap-3 mb-4">
+                <div className="relative flex-1 min-w-[200px]">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        placeholder="Search by name or vendor..."
+                        className="pl-8"
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                    />
+                </div>
+                <select
+                    value={catFilter}
+                    onChange={(e) => setCatFilter(e.target.value)}
+                    className="border rounded-lg px-3 py-2 text-sm bg-white"
+                >
+                    <option value="">All Categories</option>
+                    {(categories ?? []).map((c) => (
+                        <option key={c} value={c}>{c}</option>
+                    ))}
+                </select>
+                <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value as ""| "active" | "inactive")}
+                    className="border rounded-lg px-3 py-2 text-sm bg-white"
+                >
+                    <option value="">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                </select>
+                <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as "name" | "price" | "stock" | "newest")}
+                    className="border rounded-lg px-3 py-2 text-sm bg-white"
+                >
+                    <option value="newest">Newest</option>
+                    <option value="name">Name A–Z</option>
+                    <option value="price">Price Low–High</option>
+                    <option value="stock">Stock Low–High</option>
+                </select>
+            </div>
+
+            <p className="text-sm text-muted-foreground mb-3">{filtered.length} product{filtered.length !== 1 ? "s" : ""}</p>
+
             <Card>
                 <CardContent className="p-0">
                     <Table>
@@ -426,10 +495,10 @@ function ProductsTab() {
                         <TableBody>
                             {products === undefined ? (
                                 <TableRow><TableCell colSpan={8} className="text-center">Loading...</TableCell></TableRow>
-                            ) : products.length === 0 ? (
-                                <TableRow><TableCell colSpan={8} className="text-center py-8">No products.</TableCell></TableRow>
+                            ) : filtered.length === 0 ? (
+                                <TableRow><TableCell colSpan={8} className="text-center py-8">No products match your filters.</TableCell></TableRow>
                             ) : (
-                                products.map((p) => {
+                                filtered.map((p) => {
                                     const sellingPrice = p.salePrice ?? p.price;
                                     const rate = p.commissionRate ?? 0.12;
                                     const commission = sellingPrice * rate;
@@ -494,6 +563,7 @@ function ProductsTab() {
         </div>
     );
 }
+
 
 // ─── ORDERS ─────────────────────────────────────────────────
 
