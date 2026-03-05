@@ -146,7 +146,7 @@ export default function Home() {
     const sortedRecentlyViewed = useMemo(() => {
         if (!recentlyViewed) return [];
         const map = new Map(recentlyViewed.map((p) => [p._id, p]));
-        return recentIds.map((id) => map.get(id)).filter(Boolean) as typeof recentlyViewed;
+        return recentIds.map((id) => map.get(id as any)).filter(Boolean) as typeof recentlyViewed;
     }, [recentlyViewed, recentIds]);
 
     const handleAddToCart = (product: { _id: string; name: string; price: number; salePrice?: number; imageUrls?: string[] }) => {
