@@ -42,6 +42,9 @@ export default function EditProductPage() {
     const product = useQuery(api.vendors.getProduct, { productId });
     const updateProduct = useMutation(api.vendors.updateProduct);
     const generateUploadUrl = useMutation(api.vendors.generateUploadUrl);
+    const vendor = useQuery(api.vendors.getCurrentVendor);
+    const categories = useQuery(api.siteSettings.getCategories);
+    const commissionRate = vendor?.commissionRate ?? 0.12;
     const router = useRouter();
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -267,6 +270,12 @@ export default function EditProductPage() {
                                     />
                                 </div>
 
+                                <CostProfitBreakdown
+                                    price={form.watch("price")}
+                                    salePrice={form.watch("salePrice")}
+                                    commissionRate={commissionRate}
+                                />
+
                                 <div className="grid grid-cols-2 gap-4">
                                     <FormField
                                         control={form.control}
@@ -303,7 +312,15 @@ export default function EditProductPage() {
                                         <FormItem>
                                             <FormLabel>Category</FormLabel>
                                             <FormControl>
-                                                <Input placeholder="Electronics, Fashion..." {...field} />
+                                                <select
+                                                    {...field}
+                                                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                                >
+                                                    <option value="">Select a category</option>
+                                                    {(categories ?? []).map((cat) => (
+                                                        <option key={cat} value={cat}>{cat}</option>
+                                                    ))}
+                                                </select>
                                             </FormControl>
                                             <FormMessage />
                                         </FormItem>
@@ -498,6 +515,44 @@ function ExistingImagePreview({
             >
                 <X className="h-3 w-3" />
             </button>
+        </div>
+    );
+}
+
+function CostProfitBreakdown({
+    price,
+    salePrice,
+    commissionRate,
+}: {
+    price: number;
+    salePrice: number | string | undefined;
+    commissionRate: number;
+}) {
+    const sellingPrice = salePrice && Number(salePrice) > 0 ? Number(salePrice) : Number(price) || 0;
+    const commission = sellingPrice * commissionRate;
+    const profit = sellingPrice - commission;
+
+    return (
+        <div className="rounded-lg border bg-muted/50 p-4 space-y-2">
+            <p className="text-sm font-medium">Cost & Profit Breakdown</p>
+            {sellingPrice > 0 ? (
+                <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div>
+                        <p className="text-muted-foreground">Selling Price</p>
+                        <p className="font-semibold">R {sellingPrice.toFixed(2)}</p>
+                    </div>
+                    <div>
+                        <p className="text-muted-foreground">Commission ({(commissionRate * 100).toFixed(0)}%)</p>
+                        <p className="font-semibold text-red-600">- R {commission.toFixed(2)}</p>
+                    </div>
+                    <div>
+                        <p className="text-muted-foreground">Your Profit</p>
+                        <p className="font-semibold text-green-600">R {profit.toFixed(2)}</p>
+                    </div>
+                </div>
+            ) : (
+                <p className="text-sm text-muted-foreground">Enter a price above to see the breakdown.</p>
+            )}
         </div>
     );
 }

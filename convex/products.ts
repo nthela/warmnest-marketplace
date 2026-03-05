@@ -105,6 +105,43 @@ export const featured = query({
     },
 });
 
+export const byCategories = query({
+    args: {},
+    handler: async (ctx) => {
+        const catSetting = await ctx.db
+            .query("siteSettings")
+            .withIndex("by_key", (q) => q.eq("key", "categories"))
+            .first();
+        const categories: string[] = catSetting && catSetting.value
+            ? JSON.parse(catSetting.value)
+            : ["Electronics", "Fashion", "Home & Living", "Beauty", "Sports", "Toys"];
+
+        const result = [];
+
+        for (const category of categories) {
+            const products = await ctx.db
+                .query("products")
+                .withIndex("by_category", (q) => q.eq("category", category))
+                .filter((q) => q.eq(q.field("isActive"), true))
+                .order("desc")
+                .take(10);
+
+            if (products.length === 0) continue;
+
+            const withUrls = await Promise.all(
+                products.map(async (product) => {
+                    const imageUrls = await resolveImageUrls(ctx, product.images);
+                    return { ...product, imageUrls: imageUrls.filter(Boolean) as string[] };
+                })
+            );
+
+            result.push({ category, products: withUrls });
+        }
+
+        return result;
+    },
+});
+
 export const get = query({
     args: { id: v.id("products") },
     handler: async (ctx, args) => {
@@ -119,5 +156,94 @@ export const get = query({
         const commissionRate = vendor?.commissionRate ?? 0.12;
 
         return { ...product, imageUrls: imageUrls.filter(Boolean) as string[], vendorName, commissionRate };
+    },
+});
+
+// Fetch specific products by IDs (for "Pick Up Where You Left Off")
+export const getByIds = query({
+    args: { ids: v.array(v.string()) },
+    handler: async (ctx, args) => {
+        const result = [];
+        for (const id of args.ids) {
+            try {
+                const product = await ctx.db.get(id as Id<"products">);
+                if (!product || !product.isActive) continue;
+                const imageUrls = await resolveImageUrls(ctx, product.images);
+                result.push({ ...product, imageUrls: imageUrls.filter(Boolean) as string[] });
+            } catch {
+                // Invalid ID, skip
+            }
+        }
+        return result;
+    },
+});
+
+// Products on sale (for "MORE Deals For You")
+export const deals = query({
+    args: {},
+    handler: async (ctx) => {
+        const all = await ctx.db
+            .query("products")
+            .withIndex("by_category")
+            .filter((q) =>
+                q.and(
+                    q.eq(q.field("isActive"), true),
+                    q.neq(q.field("salePrice"), undefined)
+                )
+            )
+            .order("desc")
+            .take(20);
+
+        const withUrls = await Promise.all(
+            all.map(async (product) => {
+                const imageUrls = await resolveImageUrls(ctx, product.images);
+                return { ...product, imageUrls: imageUrls.filter(Boolean) as string[] };
+            })
+        );
+
+        return withUrls;
+    },
+});
+
+// Newest products overall (for "Discover What's Hot")
+export const newest = query({
+    args: {},
+    handler: async (ctx) => {
+        const products = await ctx.db
+            .query("products")
+            .order("desc")
+            .filter((q) => q.eq(q.field("isActive"), true))
+            .take(12);
+
+        const withUrls = await Promise.all(
+            products.map(async (product) => {
+                const imageUrls = await resolveImageUrls(ctx, product.images);
+                return { ...product, imageUrls: imageUrls.filter(Boolean) as string[] };
+            })
+        );
+
+        return withUrls;
+    },
+});
+
+// Products in a specific category (for "Popular in X" and "New In X")
+export const byCategory = query({
+    args: { category: v.string(), limit: v.optional(v.number()) },
+    handler: async (ctx, args) => {
+        const products = await ctx.db
+            .query("products")
+            .withIndex("by_category", (q) => q.eq("category", args.category))
+            .filter((q) => q.eq(q.field("isActive"), true))
+            .order("desc")
+            .take(args.limit ?? 12);
+
+        const withUrls = await Promise.all(
+            products.map(async (product) => {
+                const imageUrls = await resolveImageUrls(ctx, product.images);
+                return { ...product, imageUrls: imageUrls.filter(Boolean) as string[] };
+            })
+        );
+
+        return withUrls;
     },
 });

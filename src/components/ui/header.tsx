@@ -9,7 +9,7 @@ import { useConvexAuth, useQuery } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useRouter } from "next/navigation";
 import { api } from "../../../convex/_generated/api";
-import { Search, ShoppingCart, User, Menu, LogOut, Store, Shield } from "lucide-react";
+import { Search, ShoppingCart, User, Menu, LogOut, Store, Shield, X } from "lucide-react";
 import { useCart } from "@/contexts/cart-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +36,7 @@ export function Header() {
     const user = useQuery(api.users.currentUser);
     const { getItemCount } = useCart();
     const [searchQuery, setSearchQuery] = useState("");
+    const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
 
     function handleSearch(e: React.FormEvent) {
         e.preventDefault();
@@ -104,8 +105,8 @@ export function Header() {
 
                 {/* Actions */}
                 <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="icon" className="md:hidden">
-                        <Search className="h-5 w-5" />
+                    <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setMobileSearchOpen(!mobileSearchOpen)}>
+                        {mobileSearchOpen ? <X className="h-5 w-5" /> : <Search className="h-5 w-5" />}
                     </Button>
 
                     <Link href="/cart">
@@ -264,6 +265,26 @@ export function Header() {
                     </Sheet>
                 </div>
             </div>
+
+            {/* Mobile search bar */}
+            {mobileSearchOpen && (
+                <div className="md:hidden border-b bg-background px-4 py-2">
+                    <form onSubmit={(e) => { handleSearch(e); setMobileSearchOpen(false); }} className="flex items-center gap-2">
+                        <div className="relative flex-1">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                type="search"
+                                placeholder="Search products..."
+                                className="w-full pl-8 bg-muted/50"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                autoFocus
+                            />
+                        </div>
+                        <Button type="submit" size="sm">Search</Button>
+                    </form>
+                </div>
+            )}
         </header>
     );
 }

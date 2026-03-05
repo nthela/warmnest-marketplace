@@ -11,7 +11,7 @@ import { useState, useRef } from "react";
 import Link from "next/link";
 import {
     LayoutDashboard, Users, Store, Package, ShoppingBag, ClipboardList,
-    BarChart3, Trash2, Check, X, Eye, EyeOff, Sparkles, Settings, Upload, ImageIcon, Type
+    BarChart3, Trash2, Check, X, Eye, EyeOff, Sparkles, Settings, Upload, ImageIcon, Type, Pencil, Plus, List
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -435,7 +435,11 @@ function ProductsTab() {
                                     const commission = sellingPrice * rate;
                                     const profit = sellingPrice - commission;
                                     return (
-                                        <TableRow key={p._id} className={!p.isActive ? "opacity-50" : ""}>
+                                        <TableRow
+                                            key={p._id}
+                                            className={`cursor-pointer hover:bg-muted/50 ${!p.isActive ? "opacity-50" : ""}`}
+                                            onClick={() => window.location.href = `/vendors/products/${p._id}/edit`}
+                                        >
                                             <TableCell className="font-medium">{p.name}</TableCell>
                                             <TableCell>{p.vendorName}</TableCell>
                                             <TableCell>
@@ -459,7 +463,7 @@ function ProductsTab() {
                                                     {p.isActive ? "Yes" : "No"}
                                                 </span>
                                             </TableCell>
-                                            <TableCell className="text-right space-x-1">
+                                            <TableCell className="text-right space-x-1" onClick={(e) => e.stopPropagation()}>
                                                 <Button
                                                     size="sm"
                                                     variant="outline"
@@ -794,6 +798,9 @@ function SettingsTab() {
             {/* Homepage Text Editor */}
             <HomepageTextEditor />
 
+            {/* Category Manager */}
+            <CategoryManager />
+
             {/* Category Images */}
             <CategoryImagesEditor />
         </div>
@@ -902,11 +909,129 @@ function HomepageTextField({
     );
 }
 
+// ─── CATEGORY MANAGER ──────────────────────────────────────
+
+function CategoryManager() {
+    const categories = useQuery(api.siteSettings.getCategories);
+    const addCategory = useMutation(api.siteSettings.addCategory);
+    const renameCat = useMutation(api.siteSettings.renameCategory);
+    const deleteCat = useMutation(api.siteSettings.deleteCategory);
+
+    const [newName, setNewName] = useState("");
+    const [editingIndex, setEditingIndex] = useState<number | null>(null);
+    const [editValue, setEditValue] = useState("");
+
+    async function handleAdd() {
+        const trimmed = newName.trim();
+        if (!trimmed) return;
+        try {
+            await addCategory({ name: trimmed });
+            setNewName("");
+        } catch (err) {
+            alert(err instanceof Error ? err.message : "Failed to add category");
+        }
+    }
+
+    async function handleRename(oldName: string) {
+        const trimmed = editValue.trim();
+        if (!trimmed || trimmed === oldName) {
+            setEditingIndex(null);
+            return;
+        }
+        try {
+            await renameCat({ oldName, newName: trimmed });
+            setEditingIndex(null);
+        } catch (err) {
+            alert(err instanceof Error ? err.message : "Failed to rename category");
+        }
+    }
+
+    async function handleDelete(name: string) {
+        if (!confirm(`Delete category "${name}"? Products in this category will be moved to "Uncategorized".`)) return;
+        try {
+            await deleteCat({ name });
+        } catch (err) {
+            alert(err instanceof Error ? err.message : "Failed to delete category");
+        }
+    }
+
+    if (categories === undefined) return <Card><CardContent className="py-8 text-center text-muted-foreground">Loading...</CardContent></Card>;
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                    <List className="h-5 w-5" />
+                    Manage Categories
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                    Add, rename, or remove product categories. Renaming updates all existing products. Deleting moves products to &quot;Uncategorized&quot;.
+                </p>
+
+                {/* Add new category */}
+                <div className="flex gap-2">
+                    <Input
+                        value={newName}
+                        onChange={(e) => setNewName(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAdd(); } }}
+                        placeholder="New category name"
+                        className="flex-1"
+                    />
+                    <Button onClick={handleAdd} disabled={!newName.trim()}>
+                        <Plus className="h-4 w-4 mr-1" /> Add
+                    </Button>
+                </div>
+
+                {/* Category list */}
+                <div className="space-y-2">
+                    {categories.map((cat, i) => (
+                        <div key={cat} className="flex items-center gap-2 p-2 border rounded-md">
+                            {editingIndex === i ? (
+                                <>
+                                    <Input
+                                        value={editValue}
+                                        onChange={(e) => setEditValue(e.target.value)}
+                                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleRename(cat); } }}
+                                        className="flex-1 h-8"
+                                        autoFocus
+                                    />
+                                    <Button size="sm" onClick={() => handleRename(cat)}>Save</Button>
+                                    <Button size="sm" variant="ghost" onClick={() => setEditingIndex(null)}>Cancel</Button>
+                                </>
+                            ) : (
+                                <>
+                                    <span className="flex-1 font-medium text-sm">{cat}</span>
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        onClick={() => { setEditingIndex(i); setEditValue(cat); }}
+                                    >
+                                        <Pencil className="h-3.5 w-3.5" />
+                                    </Button>
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                        onClick={() => handleDelete(cat)}
+                                    >
+                                        <Trash2 className="h-3.5 w-3.5" />
+                                    </Button>
+                                </>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
 // ─── CATEGORY IMAGES EDITOR ────────────────────────────────
 
-const CATEGORIES = ["Electronics", "Fashion", "Home & Living", "Beauty", "Sports", "Toys"];
-
 function CategoryImagesEditor() {
+    const categories = useQuery(api.siteSettings.getCategories);
     const categoryImages = useQuery(api.siteSettings.getCategoryImages);
     const generateUploadUrl = useMutation(api.siteSettings.generateUploadUrl);
     const setCategoryImage = useMutation(api.siteSettings.setCategoryImage);
@@ -933,7 +1058,7 @@ function CategoryImagesEditor() {
         }
     }
 
-    if (categoryImages === undefined) {
+    if (categories === undefined || categoryImages === undefined) {
         return <Card><CardContent className="py-8 text-center text-muted-foreground">Loading...</CardContent></Card>;
     }
 
@@ -950,7 +1075,7 @@ function CategoryImagesEditor() {
                     Upload images for each category card on the home page. Recommended size: 400x300px.
                 </p>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {CATEGORIES.map((cat) => (
+                    {categories.map((cat) => (
                         <CategoryImageCard
                             key={cat}
                             category={cat}

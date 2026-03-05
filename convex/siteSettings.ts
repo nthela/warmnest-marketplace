@@ -119,11 +119,159 @@ export const setText = mutation({
     },
 });
 
+// ─── CATEGORIES ─────────────────────────────────────────────
+
+const DEFAULT_CATEGORIES = ["Electronics", "Fashion", "Home & Living", "Beauty", "Sports", "Toys"];
+
+async function getCategoriesList(ctx: QueryCtx): Promise<string[]> {
+    const setting = await ctx.db
+        .query("siteSettings")
+        .withIndex("by_key", (q) => q.eq("key", "categories"))
+        .first();
+    if (!setting || !setting.value) return DEFAULT_CATEGORIES;
+    return JSON.parse(setting.value) as string[];
+}
+
+// Public query — get all categories
+export const getCategories = query({
+    args: {},
+    handler: async (ctx) => {
+        return await getCategoriesList(ctx);
+    },
+});
+
+// Admin: add a category
+export const addCategory = mutation({
+    args: { name: v.string() },
+    handler: async (ctx, args) => {
+        await requireAdmin(ctx);
+        const name = args.name.trim();
+        if (!name) throw new Error("Category name cannot be empty");
+
+        const setting = await ctx.db
+            .query("siteSettings")
+            .withIndex("by_key", (q) => q.eq("key", "categories"))
+            .first();
+
+        const categories: string[] = setting && setting.value
+            ? JSON.parse(setting.value)
+            : [...DEFAULT_CATEGORIES];
+
+        if (categories.includes(name)) throw new Error("Category already exists");
+        categories.push(name);
+
+        if (setting) {
+            await ctx.db.patch(setting._id, { value: JSON.stringify(categories) });
+        } else {
+            await ctx.db.insert("siteSettings", { key: "categories", value: JSON.stringify(categories) });
+        }
+    },
+});
+
+// Admin: rename a category
+export const renameCategory = mutation({
+    args: { oldName: v.string(), newName: v.string() },
+    handler: async (ctx, args) => {
+        await requireAdmin(ctx);
+        const newName = args.newName.trim();
+        if (!newName) throw new Error("Category name cannot be empty");
+
+        const setting = await ctx.db
+            .query("siteSettings")
+            .withIndex("by_key", (q) => q.eq("key", "categories"))
+            .first();
+
+        const categories: string[] = setting && setting.value
+            ? JSON.parse(setting.value)
+            : [...DEFAULT_CATEGORIES];
+
+        const idx = categories.indexOf(args.oldName);
+        if (idx === -1) throw new Error("Category not found");
+        if (categories.includes(newName)) throw new Error("Category already exists");
+        categories[idx] = newName;
+
+        if (setting) {
+            await ctx.db.patch(setting._id, { value: JSON.stringify(categories) });
+        } else {
+            await ctx.db.insert("siteSettings", { key: "categories", value: JSON.stringify(categories) });
+        }
+
+        // Update all products with the old category name
+        const products = await ctx.db
+            .query("products")
+            .withIndex("by_category", (q) => q.eq("category", args.oldName))
+            .collect();
+        for (const product of products) {
+            await ctx.db.patch(product._id, { category: newName });
+        }
+
+        // Migrate category image key
+        const oldImageSetting = await ctx.db
+            .query("siteSettings")
+            .withIndex("by_key", (q) => q.eq("key", `categoryImage:${args.oldName}`))
+            .first();
+        if (oldImageSetting) {
+            await ctx.db.insert("siteSettings", {
+                key: `categoryImage:${newName}`,
+                value: oldImageSetting.value,
+            });
+            await ctx.db.delete(oldImageSetting._id);
+        }
+    },
+});
+
+// Admin: delete a category
+export const deleteCategory = mutation({
+    args: { name: v.string() },
+    handler: async (ctx, args) => {
+        await requireAdmin(ctx);
+
+        const setting = await ctx.db
+            .query("siteSettings")
+            .withIndex("by_key", (q) => q.eq("key", "categories"))
+            .first();
+
+        const categories: string[] = setting && setting.value
+            ? JSON.parse(setting.value)
+            : [...DEFAULT_CATEGORIES];
+
+        const filtered = categories.filter((c) => c !== args.name);
+        if (filtered.length === categories.length) throw new Error("Category not found");
+
+        if (setting) {
+            await ctx.db.patch(setting._id, { value: JSON.stringify(filtered) });
+        } else {
+            await ctx.db.insert("siteSettings", { key: "categories", value: JSON.stringify(filtered) });
+        }
+
+        // Move affected products to "Uncategorized"
+        const products = await ctx.db
+            .query("products")
+            .withIndex("by_category", (q) => q.eq("category", args.name))
+            .collect();
+        for (const product of products) {
+            await ctx.db.patch(product._id, { category: "Uncategorized" });
+        }
+
+        // Delete category image
+        const imageSetting = await ctx.db
+            .query("siteSettings")
+            .withIndex("by_key", (q) => q.eq("key", `categoryImage:${args.name}`))
+            .first();
+        if (imageSetting) {
+            try {
+                await ctx.storage.delete(imageSetting.value as Id<"_storage">);
+            } catch { /* already gone */ }
+            await ctx.db.delete(imageSetting._id);
+        }
+    },
+});
+
 // Public query — read all category images at once
 export const getCategoryImages = query({
     args: {},
     handler: async (ctx) => {
-        const categories = ["Electronics", "Fashion", "Home & Living", "Beauty", "Sports", "Toys"];
+        const categories = await getCategoriesList(ctx);
         const results: Record<string, string> = {};
         for (const cat of categories) {
             const setting = await ctx.db

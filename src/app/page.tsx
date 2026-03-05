@@ -5,22 +5,151 @@ import { Footer } from "@/components/ui/footer";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import Link from "next/link";
-import { ArrowRight, ShoppingCart, Check } from "lucide-react";
+import { ArrowRight, ShoppingCart, Check, Flame, Tag, Clock, Sparkles } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useCart } from "@/contexts/cart-context";
 import { ProductImageCarousel } from "@/components/ui/product-image-carousel";
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
+import {
+    getRecentlyViewedIds,
+    getTopCategories,
+    getLastViewedCategory,
+} from "@/lib/browsing-history";
+
+// Reusable product card for all swipeable rows
+function ProductCard({
+    product,
+    addedId,
+    onAddToCart,
+}: {
+    product: { _id: string; name: string; price: number; salePrice?: number; imageUrls?: string[] };
+    addedId: string | null;
+    onAddToCart: (product: { _id: string; name: string; price: number; salePrice?: number; imageUrls?: string[] }) => void;
+}) {
+    return (
+        <Card className="w-[160px] sm:w-[200px] flex-shrink-0 snap-start overflow-hidden group hover:shadow-lg transition-shadow">
+            <Link href={`/shop/${product._id}`}>
+                <div className="aspect-square bg-muted relative">
+                    <ProductImageCarousel images={product.imageUrls ?? []} alt={product.name} />
+                </div>
+            </Link>
+            <CardContent className="p-3">
+                <h3 className="font-semibold text-sm mb-1 group-hover:text-primary transition-colors truncate">{product.name}</h3>
+                <div className="flex items-baseline gap-2 mb-2">
+                    {product.salePrice ? (
+                        <>
+                            <span className="font-bold text-base text-red-600">R {product.salePrice}</span>
+                            <span className="text-xs text-muted-foreground line-through">R {product.price}</span>
+                        </>
+                    ) : (
+                        <span className="font-bold text-base">R {product.price}</span>
+                    )}
+                </div>
+                <div className="flex gap-2">
+                    <Link href={`/shop/${product._id}`} className="flex-1">
+                        <Button variant="outline" className="w-full" size="sm">View</Button>
+                    </Link>
+                    <Button size="sm" className="flex-1" onClick={() => onAddToCart(product)}>
+                        {addedId === product._id ? (
+                            <Check className="h-4 w-4" />
+                        ) : (
+                            <><ShoppingCart className="h-4 w-4 mr-1" /> Add</>
+                        )}
+                    </Button>
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
+// Swipeable product row section
+function ProductRow({
+    title,
+    icon,
+    products,
+    addedId,
+    onAddToCart,
+    linkHref,
+    bg,
+}: {
+    title: string;
+    icon?: React.ReactNode;
+    products: { _id: string; name: string; price: number; salePrice?: number; imageUrls?: string[] }[];
+    addedId: string | null;
+    onAddToCart: (product: { _id: string; name: string; price: number; salePrice?: number; imageUrls?: string[] }) => void;
+    linkHref?: string;
+    bg?: string;
+}) {
+    if (products.length === 0) return null;
+    return (
+        <section className={bg ?? "bg-slate-50"}>
+            <div className="container mx-auto px-4 py-8">
+                <div className="flex items-center justify-between mb-5">
+                    <h2 className="text-xl font-bold flex items-center gap-2">
+                        {icon}
+                        {title}
+                    </h2>
+                    {linkHref && (
+                        <Link href={linkHref} className="text-primary hover:underline flex items-center gap-1 text-sm">
+                            View All <ArrowRight className="h-3.5 w-3.5" />
+                        </Link>
+                    )}
+                </div>
+                <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory no-scrollbar -mx-4 px-4 pb-4">
+                    {products.map((product) => (
+                        <ProductCard key={product._id} product={product} addedId={addedId} onAddToCart={onAddToCart} />
+                    ))}
+                </div>
+            </div>
+        </section>
+    );
+}
 
 export default function Home() {
-    const products = useQuery(api.products.featured);
+    const productsByCategory = useQuery(api.products.byCategories);
     const heroBanner = useQuery(api.siteSettings.getHeroBanner);
     const homepageText = useQuery(api.siteSettings.getHomepageText);
+    const categories = useQuery(api.siteSettings.getCategories);
     const categoryImages = useQuery(api.siteSettings.getCategoryImages);
     const { addItem } = useCart();
     const [addedId, setAddedId] = useState<string | null>(null);
 
-    const handleAddToCart = (product: NonNullable<typeof products>[number]) => {
+    // Browsing history state (client-side only)
+    const [recentIds, setRecentIds] = useState<string[]>([]);
+    const [topCategories, setTopCategories] = useState<string[]>([]);
+    const [lastCategory, setLastCategory] = useState<string | null>(null);
+
+    useEffect(() => {
+        setRecentIds(getRecentlyViewedIds(12));
+        setTopCategories(getTopCategories(2));
+        setLastCategory(getLastViewedCategory());
+    }, []);
+
+    // Personalized queries
+    const recentlyViewed = useQuery(
+        api.products.getByIds,
+        recentIds.length > 0 ? { ids: recentIds } : "skip"
+    );
+    const dealsProducts = useQuery(api.products.deals);
+    const newestProducts = useQuery(api.products.newest);
+    const popularInCategory = useQuery(
+        api.products.byCategory,
+        lastCategory ? { category: lastCategory, limit: 12 } : "skip"
+    );
+    const newInCategory = useQuery(
+        api.products.byCategory,
+        topCategories[1] ? { category: topCategories[1], limit: 12 } : "skip"
+    );
+
+    // Sort recently viewed to match the order of recentIds
+    const sortedRecentlyViewed = useMemo(() => {
+        if (!recentlyViewed) return [];
+        const map = new Map(recentlyViewed.map((p) => [p._id, p]));
+        return recentIds.map((id) => map.get(id)).filter(Boolean) as typeof recentlyViewed;
+    }, [recentlyViewed, recentIds]);
+
+    const handleAddToCart = (product: { _id: string; name: string; price: number; salePrice?: number; imageUrls?: string[] }) => {
         addItem({
             productId: product._id,
             name: product.name,
@@ -42,9 +171,7 @@ export default function Home() {
                     className="relative py-20 lg:py-32 overflow-hidden bg-cover bg-center"
                     style={heroBanner ? { backgroundImage: `url(${heroBanner})` } : undefined}
                 >
-                    {/* Dark overlay when banner is present for text readability */}
                     {heroBanner && <div className="absolute inset-0 bg-black/50" />}
-                    {/* Fallback gradient blobs when no banner */}
                     {!heroBanner && (
                         <>
                             <div className="absolute inset-0 bg-primary/10" />
@@ -77,6 +204,110 @@ export default function Home() {
                     </div>
                 </section>
 
+                {/* ══════ PERSONALIZED SECTIONS ══════ */}
+
+                {/* Pick Up Where You Left Off — recently viewed products */}
+                {sortedRecentlyViewed.length > 0 && (
+                    <ProductRow
+                        title="Pick Up Where You Left Off"
+                        icon={<Clock className="h-5 w-5 text-muted-foreground" />}
+                        products={sortedRecentlyViewed}
+                        addedId={addedId}
+                        onAddToCart={handleAddToCart}
+                        bg="bg-white"
+                    />
+                )}
+
+                {/* Popular in Your Recent Category */}
+                {lastCategory && popularInCategory && popularInCategory.length > 0 && (
+                    <ProductRow
+                        title={`Popular in ${lastCategory}`}
+                        icon={<Flame className="h-5 w-5 text-orange-500" />}
+                        products={popularInCategory}
+                        addedId={addedId}
+                        onAddToCart={handleAddToCart}
+                        linkHref={`/shop?category=${lastCategory}`}
+                        bg="bg-slate-50"
+                    />
+                )}
+
+                {/* MORE Deals For You — products on sale */}
+                {dealsProducts && dealsProducts.length > 0 && (
+                    <ProductRow
+                        title="MORE Deals For You"
+                        icon={<Tag className="h-5 w-5 text-red-500" />}
+                        products={dealsProducts}
+                        addedId={addedId}
+                        onAddToCart={handleAddToCart}
+                        linkHref="/shop"
+                        bg="bg-white"
+                    />
+                )}
+
+                {/* Discover What's Hot — newest products */}
+                {newestProducts && newestProducts.length > 0 && (
+                    <ProductRow
+                        title="Discover What's Hot"
+                        icon={<Sparkles className="h-5 w-5 text-yellow-500" />}
+                        products={newestProducts}
+                        addedId={addedId}
+                        onAddToCart={handleAddToCart}
+                        linkHref="/shop"
+                        bg="bg-slate-50"
+                    />
+                )}
+
+                {/* New In (Category) — second most-browsed category */}
+                {topCategories[1] && newInCategory && newInCategory.length > 0 && (
+                    <ProductRow
+                        title={`New in ${topCategories[1]}`}
+                        icon={<Sparkles className="h-5 w-5 text-primary" />}
+                        products={newInCategory}
+                        addedId={addedId}
+                        onAddToCart={handleAddToCart}
+                        linkHref={`/shop?category=${topCategories[1]}`}
+                        bg="bg-white"
+                    />
+                )}
+
+                {/* ══════ ALL CATEGORIES (product rows) ══════ */}
+
+                {/* Products by Category — swipeable rows */}
+                {productsByCategory === undefined ? (
+                    <section className="py-12 container mx-auto px-4">
+                        <div className="space-y-10">
+                            {Array.from({ length: 3 }).map((_, i) => (
+                                <div key={i}>
+                                    <div className="h-7 w-40 bg-gray-200 animate-pulse rounded mb-4" />
+                                    <div className="flex gap-4 overflow-hidden">
+                                        {Array.from({ length: 4 }).map((_, j) => (
+                                            <div key={j} className="w-[160px] sm:w-[200px] h-72 sm:h-80 bg-gray-200 animate-pulse rounded-lg flex-shrink-0" />
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </section>
+                ) : productsByCategory.length === 0 ? (
+                    <section className="py-16 bg-white">
+                        <div className="container mx-auto px-4 text-center py-8 text-muted-foreground">
+                            No products yet. Check back soon!
+                        </div>
+                    </section>
+                ) : (
+                    productsByCategory.map((group, i) => (
+                        <ProductRow
+                            key={group.category}
+                            title={group.category}
+                            products={group.products}
+                            addedId={addedId}
+                            onAddToCart={handleAddToCart}
+                            linkHref={`/shop?category=${group.category}`}
+                            bg={i % 2 === 0 ? "bg-slate-50" : "bg-white"}
+                        />
+                    ))
+                )}
+
                 {/* Categories Section */}
                 <section className="py-16 container mx-auto px-4">
                     <div className="flex items-center justify-between mb-8">
@@ -86,7 +317,7 @@ export default function Home() {
                         </Link>
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                        {["Electronics", "Fashion", "Home & Living", "Beauty", "Sports", "Toys"].map((category) => {
+                        {(categories ?? []).map((category) => {
                             const imgUrl = categoryImages?.[category];
                             return (
                                 <Link key={category} href={`/shop?category=${category}`} className="group">
@@ -112,72 +343,6 @@ export default function Home() {
                                 </Link>
                             );
                         })}
-                    </div>
-                </section>
-
-                {/* Featured Products */}
-                <section className="py-16 bg-white">
-                    <div className="container mx-auto px-4">
-                        <div className="flex items-center justify-between mb-8">
-                            <h2 className="text-2xl font-bold">Featured Products</h2>
-                            <Link href="/shop" className="text-primary hover:underline flex items-center gap-1">
-                                View All <ArrowRight className="h-4 w-4" />
-                            </Link>
-                        </div>
-                        <div className="flex gap-4 overflow-x-auto snap-x snap-mandatory no-scrollbar -mx-4 px-4 pb-4 sm:mx-0 sm:px-0 sm:pb-0 sm:grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 sm:gap-6 sm:overflow-visible">
-                            {products === undefined ? (
-                                Array.from({ length: 4 }).map((_, i) => (
-                                    <div key={i} className="min-w-[72%] flex-shrink-0 snap-start sm:min-w-0 h-80 bg-gray-200 animate-pulse rounded-lg" />
-                                ))
-                            ) : products.length === 0 ? (
-                                <div className="min-w-full text-center py-8 text-muted-foreground">
-                                    No products yet. Check back soon!
-                                </div>
-                            ) : (
-                                products.map((product) => (
-                                    <Card key={product._id} className="min-w-[72%] flex-shrink-0 snap-start sm:min-w-0 overflow-hidden group hover:shadow-lg transition-shadow">
-                                        <Link href={`/shop/${product._id}`}>
-                                            <div className="aspect-square bg-muted relative">
-                                                <ProductImageCarousel
-                                                    images={product.imageUrls ?? []}
-                                                    alt={product.name}
-                                                />
-                                            </div>
-                                        </Link>
-                                        <CardContent className="p-4">
-                                            <div className="text-sm text-muted-foreground mb-1">{product.category}</div>
-                                            <h3 className="font-semibold text-lg mb-2 group-hover:text-primary transition-colors truncate">{product.name}</h3>
-                                            <div className="flex items-center justify-between mb-3">
-                                                {product.salePrice ? (
-                                                    <div className="flex items-baseline gap-2">
-                                                        <span className="font-bold text-lg text-red-600">R {product.salePrice}</span>
-                                                        <span className="text-sm text-muted-foreground line-through">R {product.price}</span>
-                                                    </div>
-                                                ) : (
-                                                    <span className="font-bold text-lg">R {product.price}</span>
-                                                )}
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <Link href={`/shop/${product._id}`} className="flex-1">
-                                                    <Button variant="outline" className="w-full" size="sm">View</Button>
-                                                </Link>
-                                                <Button
-                                                    size="sm"
-                                                    className="flex-1"
-                                                    onClick={() => handleAddToCart(product)}
-                                                >
-                                                    {addedId === product._id ? (
-                                                        <Check className="h-4 w-4" />
-                                                    ) : (
-                                                        <><ShoppingCart className="h-4 w-4 mr-1" /> Add</>
-                                                    )}
-                                                </Button>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                ))
-                            )}
-                        </div>
                     </div>
                 </section>
 

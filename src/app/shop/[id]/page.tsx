@@ -10,6 +10,7 @@ import { useCart } from "@/contexts/cart-context";
 import { Badge } from "@/components/ui/badge";
 import { Id } from "../../../../convex/_generated/dataModel";
 import { useState, useCallback, useRef, useEffect } from "react";
+import { trackProductView } from "@/lib/browsing-history";
 
 export default function ProductPage() {
     const params = useParams();
@@ -26,6 +27,13 @@ export default function ProductPage() {
     const dragOffsetRef = useRef(0);
     const [dragOffset, setDragOffset] = useState(0);
     const [isTransitioning, setIsTransitioning] = useState(false);
+
+    // Track this product view in browsing history
+    useEffect(() => {
+        if (product && product._id) {
+            trackProductView(product._id, product.category);
+        }
+    }, [product?._id, product?.category]);
 
     const images = product?.imageUrls ?? [];
 
