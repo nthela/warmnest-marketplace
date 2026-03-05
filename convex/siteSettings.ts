@@ -352,3 +352,49 @@ export const removeHeroBanner = mutation({
         }
     },
 });
+
+// ─── CONTACT INFO ──────────────────────────────────────────
+
+const CONTACT_KEYS = ["contactEmail", "contactPhone", "contactAddress", "contactWhatsApp", "contactFacebook", "contactInstagram", "contactTwitter"];
+
+// Public query — read all contact info at once
+export const getContactInfo = query({
+    args: {},
+    handler: async (ctx) => {
+        const results: Record<string, string> = {};
+        for (const key of CONTACT_KEYS) {
+            const setting = await ctx.db
+                .query("siteSettings")
+                .withIndex("by_key", (q) => q.eq("key", key))
+                .first();
+            if (setting && setting.value) results[key] = setting.value;
+        }
+        return results;
+    },
+});
+
+// Admin: update contact info
+export const setContactInfo = mutation({
+    args: { key: v.string(), value: v.string() },
+    handler: async (ctx, args) => {
+        await requireAdmin(ctx);
+        if (!CONTACT_KEYS.includes(args.key)) throw new Error("Invalid contact key");
+
+        const existing = await ctx.db
+            .query("siteSettings")
+            .withIndex("by_key", (q) => q.eq("key", args.key))
+            .first();
+
+        const val = args.value.trim();
+        if (!val && existing) {
+            // Remove empty entries
+            await ctx.db.delete(existing._id);
+        } else if (val) {
+            if (existing) {
+                await ctx.db.patch(existing._id, { value: val });
+            } else {
+                await ctx.db.insert("siteSettings", { key: args.key, value: val });
+            }
+        }
+    },
+});

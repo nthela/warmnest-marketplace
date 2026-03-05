@@ -11,7 +11,7 @@ import { useState, useRef } from "react";
 import Link from "next/link";
 import {
     LayoutDashboard, Users, Store, Package, ShoppingBag, ClipboardList,
-    BarChart3, Trash2, Check, X, Eye, EyeOff, Sparkles, Settings, Upload, ImageIcon, Type, Pencil, Plus, List
+    BarChart3, Trash2, Check, X, Eye, EyeOff, Sparkles, Settings, Upload, ImageIcon, Type, Pencil, Plus, List, Mail, Phone, MapPin, Globe
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -801,6 +801,9 @@ function SettingsTab() {
             {/* Category Manager */}
             <CategoryManager />
 
+            {/* Contact Info */}
+            <ContactInfoEditor />
+
             {/* Category Images */}
             <CategoryImagesEditor />
         </div>
@@ -1154,5 +1157,80 @@ function CategoryImageCard({
                 }}
             />
         </div>
+    );
+}
+
+// ─── CONTACT INFO EDITOR ───────────────────────────────────
+
+function ContactInfoEditor() {
+    const contactInfo = useQuery(api.siteSettings.getContactInfo);
+    const setContactInfo = useMutation(api.siteSettings.setContactInfo);
+    const [saving, setSaving] = useState<string | null>(null);
+    const [values, setValues] = useState<Record<string, string>>({});
+    const [initialized, setInitialized] = useState(false);
+
+    // Sync from server on first load
+    if (contactInfo && !initialized) {
+        setValues(contactInfo);
+        setInitialized(true);
+    }
+
+    const fields = [
+        { key: "contactEmail", label: "Email", icon: <Mail className="h-4 w-4" />, placeholder: "support@warmnest.co.za" },
+        { key: "contactPhone", label: "Phone", icon: <Phone className="h-4 w-4" />, placeholder: "+27 (0) 11 000 0000" },
+        { key: "contactWhatsApp", label: "WhatsApp", icon: <Phone className="h-4 w-4" />, placeholder: "+27 60 000 0000" },
+        { key: "contactAddress", label: "Address", icon: <MapPin className="h-4 w-4" />, placeholder: "Johannesburg, South Africa" },
+        { key: "contactFacebook", label: "Facebook", icon: <Globe className="h-4 w-4" />, placeholder: "https://facebook.com/warmnest" },
+        { key: "contactInstagram", label: "Instagram", icon: <Globe className="h-4 w-4" />, placeholder: "@warmnest" },
+        { key: "contactTwitter", label: "Twitter / X", icon: <Globe className="h-4 w-4" />, placeholder: "@warmnest" },
+    ];
+
+    async function handleSave(key: string) {
+        setSaving(key);
+        try {
+            await setContactInfo({ key, value: values[key] ?? "" });
+        } catch (err) {
+            console.error("Failed to save:", err);
+        } finally {
+            setSaving(null);
+        }
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                    <Phone className="h-5 w-5" />
+                    Contact Information
+                </CardTitle>
+                <p className="text-sm text-muted-foreground">
+                    Only filled-in fields will appear in the site footer. Leave blank to hide.
+                </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                {fields.map((field) => (
+                    <div key={field.key} className="flex items-center gap-3">
+                        <div className="flex items-center gap-2 w-28 shrink-0 text-sm font-medium text-muted-foreground">
+                            {field.icon}
+                            {field.label}
+                        </div>
+                        <Input
+                            placeholder={field.placeholder}
+                            value={values[field.key] ?? ""}
+                            onChange={(e) => setValues({ ...values, [field.key]: e.target.value })}
+                            className="flex-1"
+                        />
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleSave(field.key)}
+                            disabled={saving === field.key}
+                        >
+                            {saving === field.key ? "Saving..." : "Save"}
+                        </Button>
+                    </div>
+                ))}
+            </CardContent>
+        </Card>
     );
 }
