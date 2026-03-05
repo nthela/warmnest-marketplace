@@ -6,8 +6,16 @@ export default defineSchema({
   ...authTables,
   users: defineTable({
     name: v.optional(v.string()),
+    surname: v.optional(v.string()),
     email: v.optional(v.string()),
+    phone: v.optional(v.string()),
     image: v.optional(v.string()),
+    address: v.optional(v.object({
+      street: v.string(),
+      city: v.string(),
+      province: v.string(),
+      code: v.string(),
+    })),
     role: v.union(v.literal("admin"), v.literal("vendor"), v.literal("customer")),
     vendorId: v.optional(v.id("vendors")),
   }).index("by_email", ["email"]),

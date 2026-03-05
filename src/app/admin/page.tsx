@@ -11,8 +11,10 @@ import { useState, useRef } from "react";
 import Link from "next/link";
 import {
     LayoutDashboard, Users, Store, Package, ShoppingBag, ClipboardList,
-    BarChart3, Trash2, Check, X, Eye, EyeOff, Sparkles, Settings, Upload, ImageIcon
+    BarChart3, Trash2, Check, X, Eye, EyeOff, Sparkles, Settings, Upload, ImageIcon, Type
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 type Tab = "overview" | "waitlist" | "users" | "vendors" | "products" | "orders" | "analytics" | "settings";
 
@@ -718,9 +720,10 @@ function SettingsTab() {
     }
 
     return (
-        <div>
+        <div className="space-y-6">
             <h1 className="text-2xl font-bold mb-6">Site Settings</h1>
 
+            {/* Hero Banner Upload */}
             <Card>
                 <CardHeader>
                     <CardTitle className="text-base flex items-center gap-2">
@@ -787,6 +790,244 @@ function SettingsTab() {
                     />
                 </CardContent>
             </Card>
+
+            {/* Homepage Text Editor */}
+            <HomepageTextEditor />
+
+            {/* Category Images */}
+            <CategoryImagesEditor />
+        </div>
+    );
+}
+
+// ─── HOMEPAGE TEXT EDITOR ───────────────────────────────────
+
+function HomepageTextEditor() {
+    const homepageText = useQuery(api.siteSettings.getHomepageText);
+    const setText = useMutation(api.siteSettings.setText);
+    const [saving, setSaving] = useState<string | null>(null);
+
+    const fields = [
+        { key: "heroTitle", label: "Hero Title", placeholder: "Discover Unique Products from", description: "Main heading text (before the highlighted word)" },
+        { key: "heroHighlight", label: "Hero Highlight", placeholder: "Trusted Vendors", description: "The highlighted/colored word in the heading" },
+        { key: "heroSubtitle", label: "Hero Subtitle", placeholder: "WarmNest is South Africa\u2019s premier marketplace...", description: "Paragraph text below the heading" },
+        { key: "ctaTitle", label: "Seller CTA Title", placeholder: "Want to Sell on WarmNest?", description: "Heading for the vendor call-to-action section" },
+        { key: "ctaSubtitle", label: "Seller CTA Subtitle", placeholder: "We\u2019re onboarding our first sellers...", description: "Text below the vendor CTA heading" },
+    ];
+
+    async function handleSave(key: string, value: string) {
+        setSaving(key);
+        try {
+            await setText({ key, value });
+        } catch (err) {
+            console.error("Failed to save:", err);
+            alert("Failed to save. Please try again.");
+        } finally {
+            setSaving(null);
+        }
+    }
+
+    if (homepageText === undefined) return <Card><CardContent className="py-8 text-center text-muted-foreground">Loading...</CardContent></Card>;
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                    <Type className="h-5 w-5" />
+                    Home Page Text
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <p className="text-sm text-muted-foreground">
+                    Customize the text displayed on the home page. Leave a field empty and save to reset it to the default.
+                </p>
+                {fields.map((field) => (
+                    <HomepageTextField
+                        key={field.key}
+                        fieldKey={field.key}
+                        label={field.label}
+                        placeholder={field.placeholder}
+                        description={field.description}
+                        currentValue={homepageText[field.key] ?? ""}
+                        saving={saving === field.key}
+                        onSave={handleSave}
+                    />
+                ))}
+            </CardContent>
+        </Card>
+    );
+}
+
+function HomepageTextField({
+    fieldKey,
+    label,
+    placeholder,
+    description,
+    currentValue,
+    saving,
+    onSave,
+}: {
+    fieldKey: string;
+    label: string;
+    placeholder: string;
+    description: string;
+    currentValue: string;
+    saving: boolean;
+    onSave: (key: string, value: string) => void;
+}) {
+    const [value, setValue] = useState(currentValue);
+    const isDirty = value !== currentValue;
+
+    return (
+        <div className="grid gap-2">
+            <Label>{label}</Label>
+            <p className="text-xs text-muted-foreground">{description}</p>
+            <div className="flex gap-2">
+                <Input
+                    value={value}
+                    onChange={(e) => setValue(e.target.value)}
+                    placeholder={placeholder}
+                    className="flex-1"
+                />
+                <Button
+                    size="sm"
+                    onClick={() => onSave(fieldKey, value)}
+                    disabled={!isDirty || saving}
+                    className="shrink-0"
+                >
+                    {saving ? "Saving..." : "Save"}
+                </Button>
+            </div>
+        </div>
+    );
+}
+
+// ─── CATEGORY IMAGES EDITOR ────────────────────────────────
+
+const CATEGORIES = ["Electronics", "Fashion", "Home & Living", "Beauty", "Sports", "Toys"];
+
+function CategoryImagesEditor() {
+    const categoryImages = useQuery(api.siteSettings.getCategoryImages);
+    const generateUploadUrl = useMutation(api.siteSettings.generateUploadUrl);
+    const setCategoryImage = useMutation(api.siteSettings.setCategoryImage);
+    const removeCategoryImage = useMutation(api.siteSettings.removeCategoryImage);
+
+    const [uploading, setUploading] = useState<string | null>(null);
+
+    async function handleUpload(category: string, file: File) {
+        setUploading(category);
+        try {
+            const uploadUrl = await generateUploadUrl();
+            const result = await fetch(uploadUrl, {
+                method: "POST",
+                headers: { "Content-Type": file.type },
+                body: file,
+            });
+            const { storageId } = await result.json();
+            await setCategoryImage({ category, storageId });
+        } catch (err) {
+            console.error("Upload failed:", err);
+            alert("Failed to upload image. Please try again.");
+        } finally {
+            setUploading(null);
+        }
+    }
+
+    if (categoryImages === undefined) {
+        return <Card><CardContent className="py-8 text-center text-muted-foreground">Loading...</CardContent></Card>;
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                    <ImageIcon className="h-5 w-5" />
+                    Category Images
+                </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">
+                    Upload images for each category card on the home page. Recommended size: 400x300px.
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {CATEGORIES.map((cat) => (
+                        <CategoryImageCard
+                            key={cat}
+                            category={cat}
+                            imageUrl={categoryImages[cat] ?? null}
+                            uploading={uploading === cat}
+                            onUpload={(file) => handleUpload(cat, file)}
+                            onRemove={() => {
+                                if (confirm(`Remove image for "${cat}"?`)) {
+                                    removeCategoryImage({ category: cat });
+                                }
+                            }}
+                        />
+                    ))}
+                </div>
+            </CardContent>
+        </Card>
+    );
+}
+
+function CategoryImageCard({
+    category,
+    imageUrl,
+    uploading,
+    onUpload,
+    onRemove,
+}: {
+    category: string;
+    imageUrl: string | null;
+    uploading: boolean;
+    onUpload: (file: File) => void;
+    onRemove: () => void;
+}) {
+    const fileRef = useRef<HTMLInputElement>(null);
+
+    return (
+        <div className="border rounded-lg overflow-hidden">
+            <div className="relative h-28 bg-muted">
+                {imageUrl ? (
+                    <>
+                        <img src={imageUrl} alt={category} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                        <span className="absolute bottom-2 left-2 text-white text-sm font-semibold drop-shadow">{category}</span>
+                    </>
+                ) : (
+                    <div className="flex items-center justify-center h-full">
+                        <span className="text-sm text-muted-foreground">{category}</span>
+                    </div>
+                )}
+            </div>
+            <div className="p-2 flex gap-1">
+                <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 text-xs"
+                    onClick={() => fileRef.current?.click()}
+                    disabled={uploading}
+                >
+                    <Upload className="h-3 w-3 mr-1" />
+                    {uploading ? "Uploading..." : imageUrl ? "Replace" : "Upload"}
+                </Button>
+                {imageUrl && (
+                    <Button size="sm" variant="destructive" className="text-xs" onClick={onRemove}>
+                        <Trash2 className="h-3 w-3" />
+                    </Button>
+                )}
+            </div>
+            <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) onUpload(file);
+                    e.target.value = "";
+                }}
+            />
         </div>
     );
 }

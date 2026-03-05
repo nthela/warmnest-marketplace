@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
 import { useAction, useMutation } from "convex/react";
+import { useConvexAuth } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
 import { getShippingRates, ShippingRate } from "@/lib/shiprazor";
@@ -28,6 +29,7 @@ const SA_PROVINCES = [
 
 export default function CheckoutPage() {
     const { items, getTotal } = useCart();
+    const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
     const createOrder = useMutation(api.orders.create);
     const buildPaymentData = useAction(api.payfast.buildPaymentData);
 
@@ -96,6 +98,32 @@ export default function CheckoutPage() {
             setPlacing(false);
         }
     };
+
+    if (authLoading) {
+        return (
+            <div className="min-h-screen bg-slate-50">
+                <Header />
+                <div className="container mx-auto px-4 py-16 text-center">
+                    <p className="text-muted-foreground">Loading...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (!isAuthenticated) {
+        return (
+            <div className="min-h-screen bg-slate-50">
+                <Header />
+                <div className="container mx-auto px-4 py-16 text-center">
+                    <h1 className="text-2xl font-bold mb-4">Sign in to continue</h1>
+                    <p className="text-muted-foreground mb-6">You need to be logged in to checkout. Your cart items will be saved.</p>
+                    <Link href="/signin">
+                        <Button size="lg">Sign In or Create Account</Button>
+                    </Link>
+                </div>
+            </div>
+        );
+    }
 
     if (items.length === 0 && step === "address") {
         return (

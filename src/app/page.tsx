@@ -15,6 +15,8 @@ import { useState } from "react";
 export default function Home() {
     const products = useQuery(api.products.featured);
     const heroBanner = useQuery(api.siteSettings.getHeroBanner);
+    const homepageText = useQuery(api.siteSettings.getHomepageText);
+    const categoryImages = useQuery(api.siteSettings.getCategoryImages);
     const { addItem } = useCart();
     const [addedId, setAddedId] = useState<string | null>(null);
 
@@ -52,10 +54,13 @@ export default function Home() {
                     )}
                     <div className="container mx-auto px-4 relative z-10 flex flex-col items-center text-center">
                         <h1 className={`text-4xl md:text-6xl font-extrabold tracking-tight mb-6 ${heroBanner ? "text-white" : "text-foreground"}`}>
-                            Discover Unique Products from <span className={heroBanner ? "text-yellow-300" : "text-primary"}>Trusted Vendors</span>
+                            {homepageText?.heroTitle ?? "Discover Unique Products from"}{" "}
+                            <span className={heroBanner ? "text-yellow-300" : "text-primary"}>
+                                {homepageText?.heroHighlight ?? "Trusted Vendors"}
+                            </span>
                         </h1>
                         <p className={`text-lg md:text-xl max-w-2xl mb-8 ${heroBanner ? "text-white/90" : "text-muted-foreground"}`}>
-                            WarmNest is South Africa&apos;s premier marketplace connecting you with the best local sellers. Shop fashion, home decor, electronics, and more.
+                            {homepageText?.heroSubtitle ?? "WarmNest is South Africa\u2019s premier marketplace connecting you with the best local sellers. Shop fashion, home decor, electronics, and more."}
                         </p>
                         <div className="flex gap-4">
                             <Link href="/shop">
@@ -80,14 +85,33 @@ export default function Home() {
                             View All <ArrowRight className="h-4 w-4" />
                         </Link>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                        {["Electronics", "Fashion", "Home & Living", "Beauty", "Sports", "Toys"].map((category) => (
-                            <Link key={category} href={`/shop?category=${category}`} className="group">
-                                <Card className="h-32 flex items-center justify-center bg-card hover:bg-accent/50 transition-colors cursor-pointer border-none shadow-sm">
-                                    <span className="font-medium text-foreground group-hover:text-primary transition-colors">{category}</span>
-                                </Card>
-                            </Link>
-                        ))}
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                        {["Electronics", "Fashion", "Home & Living", "Beauty", "Sports", "Toys"].map((category) => {
+                            const imgUrl = categoryImages?.[category];
+                            return (
+                                <Link key={category} href={`/shop?category=${category}`} className="group">
+                                    <Card className="relative h-40 md:h-44 overflow-hidden border-none shadow-sm cursor-pointer">
+                                        {imgUrl ? (
+                                            <>
+                                                <img
+                                                    src={imgUrl}
+                                                    alt={category}
+                                                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                                                />
+                                                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                                                <span className="absolute bottom-3 left-3 right-3 text-white font-semibold text-sm md:text-base drop-shadow-lg">
+                                                    {category}
+                                                </span>
+                                            </>
+                                        ) : (
+                                            <div className="flex items-center justify-center h-full bg-card group-hover:bg-accent/50 transition-colors">
+                                                <span className="font-medium text-foreground group-hover:text-primary transition-colors">{category}</span>
+                                            </div>
+                                        )}
+                                    </Card>
+                                </Link>
+                            );
+                        })}
                     </div>
                 </section>
 
@@ -160,9 +184,11 @@ export default function Home() {
                 {/* Vendor Waitlist CTA */}
                 <section className="py-20 bg-primary/95 text-primary-foreground">
                     <div className="container mx-auto px-4 text-center">
-                        <h2 className="text-3xl font-bold mb-4 text-white">Want to Sell on WarmNest?</h2>
+                        <h2 className="text-3xl font-bold mb-4 text-white">
+                            {homepageText?.ctaTitle ?? "Want to Sell on WarmNest?"}
+                        </h2>
                         <p className="text-lg max-w-2xl mx-auto mb-8 opacity-90">
-                            We&apos;re onboarding our first sellers. Join the waitlist to get early access, reduced commission rates, and priority support when we launch.
+                            {homepageText?.ctaSubtitle ?? "We\u2019re onboarding our first sellers. Join the waitlist to get early access, reduced commission rates, and priority support when we launch."}
                         </p>
                         <Link href="/vendors/register#waitlist-form">
                             <Button variant="secondary" size="lg" className="h-12 px-8 text-primary font-bold">

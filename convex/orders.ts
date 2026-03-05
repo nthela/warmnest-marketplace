@@ -59,9 +59,12 @@ export const create = mutation({
     },
     handler: async (ctx, args) => {
         const userId = await getAuthUserId(ctx);
+        if (!userId) {
+            throw new Error("You must be signed in to place an order.");
+        }
 
         const orderId = await ctx.db.insert("orders", {
-            userId: userId ?? undefined,
+            userId,
             totalAmount: args.totalAmount,
             status: "pending",
             paymentId: args.paymentId,
