@@ -11,7 +11,8 @@ import { useState, useRef } from "react";
 import Link from "next/link";
 import {
     LayoutDashboard, Users, Store, Package, ShoppingBag, ClipboardList,
-    BarChart3, Trash2, Check, X, Eye, EyeOff, Sparkles, Settings, Upload, ImageIcon, Type, Pencil, Plus, List, Mail, Phone, MapPin, Globe, Search
+    BarChart3, Trash2, Check, X, Eye, EyeOff, Sparkles, Settings, Upload, ImageIcon, Type, Pencil, Plus, List, Mail, Phone, MapPin, Globe, Search,
+    TrendingUp, TrendingDown, Minus, DollarSign, Activity, ShieldCheck, AlertTriangle, Star
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -104,36 +105,128 @@ export default function AdminDashboard() {
     );
 }
 
+// ─── CHANGE BADGE ──────────────────────────────────────────
+
+function ChangeBadge({ value }: { value: number }) {
+    if (value > 0) return <span className="inline-flex items-center gap-0.5 text-xs font-medium text-green-600"><TrendingUp className="h-3 w-3" />+{value}%</span>;
+    if (value < 0) return <span className="inline-flex items-center gap-0.5 text-xs font-medium text-red-500"><TrendingDown className="h-3 w-3" />{value}%</span>;
+    return <span className="inline-flex items-center gap-0.5 text-xs font-medium text-muted-foreground"><Minus className="h-3 w-3" />0%</span>;
+}
+
+// ─── SIMPLE BAR CHART ──────────────────────────────────────
+
+function MiniBarChart({ data, labelKey, valueKey, formatValue }: {
+    data: Record<string, unknown>[];
+    labelKey: string;
+    valueKey: string;
+    formatValue?: (v: number) => string;
+}) {
+    const max = Math.max(...data.map((d) => d[valueKey] as number), 1);
+    return (
+        <div className="space-y-2">
+            {data.map((d, i) => {
+                const val = d[valueKey] as number;
+                return (
+                    <div key={i} className="flex items-center gap-3 text-sm">
+                        <span className="w-20 text-right text-muted-foreground truncate">{d[labelKey] as string}</span>
+                        <div className="flex-1 h-5 bg-muted rounded overflow-hidden">
+                            <div className="h-full bg-primary/70 rounded" style={{ width: `${(val / max) * 100}%` }} />
+                        </div>
+                        <span className="w-16 text-right font-medium">{formatValue ? formatValue(val) : val}</span>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
 // ─── OVERVIEW ───────────────────────────────────────────────
 
 function OverviewTab() {
+    const exec = useQuery(api.analytics.getExecutiveMetrics);
     const stats = useQuery(api.admin.getStats);
+    const health = useQuery(api.analytics.getMarketplaceHealth);
 
-    if (!stats) return <div>Loading stats...</div>;
+    if (!exec || !stats) return <div>Loading stats...</div>;
 
-    const cards = [
+    const kpis: { label: string; value: string; change: number; icon: React.ReactNode }[] = [
+        { label: "GMV", value: `R ${exec.gmv.toFixed(2)}`, change: exec.gmvChange, icon: <DollarSign className="h-4 w-4" /> },
+        { label: "Revenue (Commission)", value: `R ${exec.revenue.toFixed(2)}`, change: exec.revenueChange, icon: <TrendingUp className="h-4 w-4" /> },
+        { label: "Orders", value: String(exec.totalOrders), change: exec.ordersChange, icon: <ShoppingBag className="h-4 w-4" /> },
+        { label: "Active Users (30d)", value: String(exec.activeUsers), change: exec.activeUsersChange, icon: <Activity className="h-4 w-4" /> },
+    ];
+
+    const secondaryCards = [
         { label: "Total Users", value: stats.totalUsers },
         { label: "Active Vendors", value: stats.activeVendors },
         { label: "Pending Vendors", value: stats.pendingVendors },
         { label: "Total Products", value: stats.totalProducts },
-        { label: "Total Orders", value: stats.totalOrders },
-        { label: "Revenue", value: `R ${stats.totalRevenue.toFixed(2)}` },
         { label: "Waitlist", value: stats.waitlistCount },
     ];
 
     return (
-        <div>
-            <h1 className="text-2xl font-bold mb-6">Dashboard Overview</h1>
+        <div className="space-y-6">
+            <h1 className="text-2xl font-bold">Dashboard Overview</h1>
+
+            {/* Executive KPIs */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {cards.map((c) => (
-                    <Card key={c.label}>
-                        <CardContent className="pt-6">
-                            <p className="text-sm text-muted-foreground">{c.label}</p>
-                            <p className="text-2xl font-bold">{c.value}</p>
+                {kpis.map((k) => (
+                    <Card key={k.label}>
+                        <CardContent className="pt-5 pb-4">
+                            <div className="flex items-center justify-between mb-1">
+                                <p className="text-sm text-muted-foreground">{k.label}</p>
+                                <span className="text-muted-foreground">{k.icon}</span>
+                            </div>
+                            <p className="text-2xl font-bold">{k.value}</p>
+                            <div className="mt-1"><ChangeBadge value={k.change} /> <span className="text-xs text-muted-foreground">vs last month</span></div>
                         </CardContent>
                     </Card>
                 ))}
             </div>
+
+            {/* Quick metrics row */}
+            <div className="grid grid-cols-3 md:grid-cols-5 gap-3">
+                {secondaryCards.map((c) => (
+                    <Card key={c.label}>
+                        <CardContent className="pt-4 pb-3">
+                            <p className="text-xs text-muted-foreground">{c.label}</p>
+                            <p className="text-xl font-bold">{c.value}</p>
+                        </CardContent>
+                    </Card>
+                ))}
+            </div>
+
+            {/* Health snapshot */}
+            {health && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <Card>
+                        <CardContent className="pt-5 pb-4">
+                            <p className="text-sm text-muted-foreground">Avg Order Value</p>
+                            <p className="text-xl font-bold">R {health.avgOrderValue.toFixed(2)}</p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardContent className="pt-5 pb-4">
+                            <p className="text-sm text-muted-foreground">Customer Retention</p>
+                            <p className="text-xl font-bold">{health.retentionRate}%</p>
+                            <p className="text-xs text-muted-foreground">{health.repeatBuyers} repeat of {health.totalBuyers} buyers</p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardContent className="pt-5 pb-4">
+                            <p className="text-sm text-muted-foreground">Cancel Rate</p>
+                            <p className="text-xl font-bold">{health.cancellationRate}%</p>
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardContent className="pt-5 pb-4">
+                            <p className="text-sm text-muted-foreground">Avg Rating</p>
+                            <p className="text-xl font-bold flex items-center gap-1">{health.avgRating || "—"} <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" /></p>
+                            <p className="text-xs text-muted-foreground">{health.totalReviews} reviews</p>
+                        </CardContent>
+                    </Card>
+                </div>
+            )}
         </div>
     );
 }
@@ -642,117 +735,385 @@ function OrdersTab() {
 // ─── ANALYTICS ──────────────────────────────────────────────
 
 function AnalyticsTab() {
-    const analytics = useQuery(api.admin.getAnalytics);
-
-    if (!analytics) return <div>Loading analytics...</div>;
+    const [section, setSection] = useState<"growth" | "health" | "operations">("growth");
 
     return (
-        <div>
-            <h1 className="text-2xl font-bold mb-6">Marketplace Analytics</h1>
+        <div className="space-y-6">
+            <div className="flex flex-wrap items-center gap-3">
+                <h1 className="text-2xl font-bold mr-auto">Marketplace Analytics</h1>
+                <div className="flex bg-muted rounded-lg p-1">
+                    {(["growth", "health", "operations"] as const).map((s) => (
+                        <button
+                            key={s}
+                            onClick={() => setSection(s)}
+                            className={`px-3 py-1.5 rounded-md text-sm capitalize transition-colors ${
+                                section === s ? "bg-white shadow font-medium" : "text-muted-foreground hover:text-foreground"
+                            }`}
+                        >
+                            {s}
+                        </button>
+                    ))}
+                </div>
+            </div>
 
-            {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            {section === "growth" && <GrowthSection />}
+            {section === "health" && <HealthSection />}
+            {section === "operations" && <OperationsSection />}
+        </div>
+    );
+}
+
+// ── Growth ──
+
+function GrowthSection() {
+    const growth = useQuery(api.analytics.getGrowthMetrics);
+    if (!growth) return <div>Loading growth metrics...</div>;
+
+    return (
+        <div className="space-y-6">
+            {/* Summary cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Card>
-                    <CardContent className="pt-6">
-                        <p className="text-sm text-muted-foreground">Total Revenue</p>
-                        <p className="text-3xl font-bold">R {analytics.totalRevenue.toFixed(2)}</p>
+                    <CardContent className="pt-5 pb-4">
+                        <div className="flex items-center justify-between mb-1">
+                            <p className="text-sm text-muted-foreground">Customer Growth</p>
+                            <Users className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <p className="text-2xl font-bold">{growth.totalCustomers}</p>
+                        <div className="mt-1 flex items-center gap-2">
+                            <ChangeBadge value={growth.customerGrowth} />
+                            <span className="text-xs text-muted-foreground">+{growth.customersThisMonth} this month</span>
+                        </div>
                     </CardContent>
                 </Card>
                 <Card>
-                    <CardContent className="pt-6">
-                        <p className="text-sm text-muted-foreground">Total Orders</p>
-                        <p className="text-3xl font-bold">{analytics.totalOrders}</p>
+                    <CardContent className="pt-5 pb-4">
+                        <div className="flex items-center justify-between mb-1">
+                            <p className="text-sm text-muted-foreground">Vendor Growth</p>
+                            <Store className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <p className="text-2xl font-bold">{growth.totalVendors}</p>
+                        <div className="mt-1 flex items-center gap-2">
+                            <ChangeBadge value={growth.vendorGrowth} />
+                            <span className="text-xs text-muted-foreground">+{growth.vendorsThisMonth} this month</span>
+                        </div>
                     </CardContent>
                 </Card>
                 <Card>
-                    <CardContent className="pt-6">
-                        <p className="text-sm text-muted-foreground">Avg Order Value</p>
-                        <p className="text-3xl font-bold">R {analytics.avgOrderValue.toFixed(2)}</p>
+                    <CardContent className="pt-5 pb-4">
+                        <div className="flex items-center justify-between mb-1">
+                            <p className="text-sm text-muted-foreground">Categories</p>
+                            <Package className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <p className="text-2xl font-bold">{growth.totalCategories}</p>
                     </CardContent>
                 </Card>
             </div>
 
+            {/* Monthly signups chart */}
+            <Card>
+                <CardHeader><CardTitle className="text-base">Monthly Signups (6 months)</CardTitle></CardHeader>
+                <CardContent>
+                    <MiniBarChart data={growth.monthlySignups as unknown as Record<string, unknown>[]} labelKey="month" valueKey="customers" />
+                </CardContent>
+            </Card>
+
+            {/* Category breakdown */}
+            <Card>
+                <CardHeader><CardTitle className="text-base">Category Growth</CardTitle></CardHeader>
+                <CardContent>
+                    {growth.categoryGrowth.length > 0 ? (
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Category</TableHead>
+                                    <TableHead>Products</TableHead>
+                                    <TableHead>New This Month</TableHead>
+                                    <TableHead>Change</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {growth.categoryGrowth.map((c) => (
+                                    <TableRow key={c.name}>
+                                        <TableCell className="font-medium">{c.name}</TableCell>
+                                        <TableCell>{c.total}</TableCell>
+                                        <TableCell>{c.newThisMonth}</TableCell>
+                                        <TableCell><ChangeBadge value={c.change} /></TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">No category data yet.</p>
+                    )}
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
+
+// ── Health ──
+
+function HealthSection() {
+    const health = useQuery(api.analytics.getMarketplaceHealth);
+    if (!health) return <div>Loading health metrics...</div>;
+
+    const statusColors: Record<string, string> = {
+        pending: "bg-yellow-400",
+        paid: "bg-blue-400",
+        processing: "bg-indigo-400",
+        shipped: "bg-cyan-400",
+        completed: "bg-green-400",
+        cancelled: "bg-red-400",
+    };
+
+    return (
+        <div className="space-y-6">
+            {/* Health KPIs */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Card>
+                    <CardContent className="pt-5 pb-4">
+                        <p className="text-sm text-muted-foreground">Avg Order Value</p>
+                        <p className="text-2xl font-bold">R {health.avgOrderValue.toFixed(2)}</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardContent className="pt-5 pb-4">
+                        <p className="text-sm text-muted-foreground">Customer Retention</p>
+                        <p className="text-2xl font-bold">{health.retentionRate}%</p>
+                        <p className="text-xs text-muted-foreground">{health.repeatBuyers} repeat of {health.totalBuyers} buyers</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardContent className="pt-5 pb-4">
+                        <p className="text-sm text-muted-foreground">Cancellation Rate</p>
+                        <p className={`text-2xl font-bold ${health.cancellationRate > 10 ? "text-red-500" : ""}`}>{health.cancellationRate}%</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardContent className="pt-5 pb-4">
+                        <p className="text-sm text-muted-foreground">Review Score</p>
+                        <p className="text-2xl font-bold flex items-center gap-1">{health.avgRating || "—"} <Star className="h-4 w-4 text-yellow-400 fill-yellow-400" /></p>
+                        <p className="text-xs text-muted-foreground">{health.totalReviews} reviews</p>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Conversion note */}
+            <Card className="border-dashed">
+                <CardContent className="pt-5 pb-4 flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                        <p className="text-sm font-medium">Conversion Rate & Cart Abandonment</p>
+                        <p className="text-xs text-muted-foreground">These metrics require page view and cart event tracking. Currently the cart is client-side (localStorage). Add server-side event logging to enable these insights.</p>
+                    </div>
+                </CardContent>
+            </Card>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Orders by Status */}
                 <Card>
-                    <CardHeader>
-                        <CardTitle className="text-base">Orders by Status</CardTitle>
-                    </CardHeader>
+                    <CardHeader><CardTitle className="text-base">Orders by Status</CardTitle></CardHeader>
                     <CardContent>
                         <div className="space-y-3">
-                            {Object.entries(analytics.ordersByStatus).map(([status, count]) => (
+                            {Object.entries(health.ordersByStatus).map(([status, count]) => (
                                 <div key={status} className="flex items-center justify-between">
-                                    <span className="capitalize text-sm">{status}</span>
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-32 h-2 bg-muted rounded-full overflow-hidden">
-                                            <div
-                                                className="h-full bg-primary rounded-full"
-                                                style={{ width: `${analytics.totalOrders > 0 ? ((count as number) / analytics.totalOrders) * 100 : 0}%` }}
-                                            />
-                                        </div>
-                                        <span className="text-sm font-medium w-8 text-right">{count as number}</span>
-                                    </div>
+                                    <span className="capitalize text-sm flex items-center gap-2">
+                                        <span className={`w-2.5 h-2.5 rounded-full ${statusColors[status] ?? "bg-gray-400"}`} />
+                                        {status}
+                                    </span>
+                                    <span className="text-sm font-medium">{count as number}</span>
                                 </div>
                             ))}
-                            {Object.keys(analytics.ordersByStatus).length === 0 && (
+                            {Object.keys(health.ordersByStatus).length === 0 && (
                                 <p className="text-sm text-muted-foreground">No orders yet.</p>
                             )}
                         </div>
                     </CardContent>
                 </Card>
 
+                {/* Monthly GMV */}
+                <Card>
+                    <CardHeader><CardTitle className="text-base">Monthly GMV (6 months)</CardTitle></CardHeader>
+                    <CardContent>
+                        <MiniBarChart
+                            data={health.monthlyOrders as unknown as Record<string, unknown>[]}
+                            labelKey="month"
+                            valueKey="gmv"
+                            formatValue={(v) => `R ${v.toFixed(0)}`}
+                        />
+                    </CardContent>
+                </Card>
+            </div>
+        </div>
+    );
+}
+
+// ── Operations ──
+
+function OperationsSection() {
+    const ops = useQuery(api.analytics.getOperationsMetrics);
+    if (!ops) return <div>Loading operations metrics...</div>;
+
+    const pipelineStages = [
+        { key: "pending", label: "Pending", color: "bg-yellow-400" },
+        { key: "paid", label: "Paid", color: "bg-blue-400" },
+        { key: "processing", label: "Processing", color: "bg-indigo-400" },
+        { key: "shipped", label: "Shipped", color: "bg-cyan-400" },
+        { key: "completed", label: "Completed", color: "bg-green-400" },
+        { key: "cancelled", label: "Cancelled", color: "bg-red-400" },
+    ];
+
+    return (
+        <div className="space-y-6">
+            {/* Fulfillment KPIs */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <Card>
+                    <CardContent className="pt-5 pb-4">
+                        <div className="flex items-center justify-between mb-1">
+                            <p className="text-sm text-muted-foreground">Fulfillment Rate</p>
+                            <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        <p className={`text-2xl font-bold ${ops.fulfillmentRate >= 80 ? "text-green-600" : ops.fulfillmentRate >= 50 ? "text-yellow-600" : "text-red-500"}`}>
+                            {ops.fulfillmentRate}%
+                        </p>
+                        <p className="text-xs text-muted-foreground">shipped or completed</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardContent className="pt-5 pb-4">
+                        <p className="text-sm text-muted-foreground">Cancel Rate</p>
+                        <p className={`text-2xl font-bold ${ops.cancelRate > 10 ? "text-red-500" : ""}`}>{ops.cancelRate}%</p>
+                    </CardContent>
+                </Card>
+                <Card>
+                    <CardContent className="pt-5 pb-4">
+                        <p className="text-sm text-muted-foreground">Total Orders</p>
+                        <p className="text-2xl font-bold">{ops.totalOrders}</p>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Fulfillment Pipeline */}
+            <Card>
+                <CardHeader><CardTitle className="text-base">Fulfillment Pipeline</CardTitle></CardHeader>
+                <CardContent>
+                    {ops.totalOrders > 0 ? (
+                        <>
+                            <div className="flex h-6 rounded-full overflow-hidden mb-3">
+                                {pipelineStages.map((s) => {
+                                    const count = ops.pipeline[s.key as keyof typeof ops.pipeline];
+                                    const pct = (count / ops.totalOrders) * 100;
+                                    if (pct === 0) return null;
+                                    return <div key={s.key} className={`${s.color}`} style={{ width: `${pct}%` }} title={`${s.label}: ${count}`} />;
+                                })}
+                            </div>
+                            <div className="flex flex-wrap gap-x-4 gap-y-1">
+                                {pipelineStages.map((s) => {
+                                    const count = ops.pipeline[s.key as keyof typeof ops.pipeline];
+                                    return (
+                                        <span key={s.key} className="flex items-center gap-1.5 text-xs">
+                                            <span className={`w-2.5 h-2.5 rounded-full ${s.color}`} />
+                                            {s.label}: {count}
+                                        </span>
+                                    );
+                                })}
+                            </div>
+                        </>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">No orders yet.</p>
+                    )}
+                </CardContent>
+            </Card>
+
+            {/* Infrastructure note */}
+            <Card className="border-dashed">
+                <CardContent className="pt-5 pb-4 flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-yellow-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                        <p className="text-sm font-medium">Infrastructure Metrics</p>
+                        <p className="text-xs text-muted-foreground">Server load, page speed, and API traffic metrics require integration with a monitoring provider (e.g. Vercel Analytics, Sentry). These are not available from the application database.</p>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Top Products */}
                 <Card>
+                    <CardHeader><CardTitle className="text-base">Top Selling Products</CardTitle></CardHeader>
+                    <CardContent>
+                        {ops.topProducts.length > 0 ? (
+                            <div className="space-y-3">
+                                {ops.topProducts.map((p, i) => (
+                                    <div key={i} className="flex items-center justify-between">
+                                        <span className="text-sm truncate flex-1">{p.name}</span>
+                                        <div className="text-right ml-4">
+                                            <span className="text-sm font-medium">{p.quantity} sold</span>
+                                            <span className="text-xs text-muted-foreground ml-2">R {p.revenue.toFixed(0)}</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">No sales yet.</p>
+                        )}
+                    </CardContent>
+                </Card>
+
+                {/* Low Stock Alert */}
+                <Card>
                     <CardHeader>
-                        <CardTitle className="text-base">Top Selling Products</CardTitle>
+                        <CardTitle className="text-base flex items-center gap-2">
+                            <AlertTriangle className="h-4 w-4 text-yellow-500" />
+                            Low Stock Alerts
+                        </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="space-y-3">
-                            {analytics.topProducts.map((p, i) => (
-                                <div key={i} className="flex items-center justify-between">
-                                    <span className="text-sm truncate flex-1">{p.name}</span>
-                                    <div className="text-right ml-4">
-                                        <span className="text-sm font-medium">{p.count} sold</span>
-                                        <span className="text-xs text-muted-foreground ml-2">R {p.revenue.toFixed(0)}</span>
+                        {ops.lowStock.length > 0 ? (
+                            <div className="space-y-2">
+                                {ops.lowStock.map((p, i) => (
+                                    <div key={i} className="flex items-center justify-between text-sm">
+                                        <span className="truncate flex-1">{p.name}</span>
+                                        <span className={`font-medium ${p.stock === 0 ? "text-red-500" : "text-yellow-600"}`}>
+                                            {p.stock === 0 ? "Out of stock" : `${p.stock} left`}
+                                        </span>
                                     </div>
-                                </div>
-                            ))}
-                            {analytics.topProducts.length === 0 && (
-                                <p className="text-sm text-muted-foreground">No sales yet.</p>
-                            )}
-                        </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">All products well-stocked.</p>
+                        )}
                     </CardContent>
                 </Card>
 
                 {/* Vendor Performance */}
                 <Card className="md:col-span-2">
-                    <CardHeader>
-                        <CardTitle className="text-base">Vendor Performance</CardTitle>
-                    </CardHeader>
+                    <CardHeader><CardTitle className="text-base">Vendor Performance</CardTitle></CardHeader>
                     <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Vendor</TableHead>
-                                    <TableHead>Revenue</TableHead>
-                                    <TableHead>Items Sold</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {analytics.vendorPerformance.map((v, i) => (
-                                    <TableRow key={i}>
-                                        <TableCell className="font-medium">{v.name}</TableCell>
-                                        <TableCell>R {v.revenue.toFixed(2)}</TableCell>
-                                        <TableCell>{v.orders}</TableCell>
-                                    </TableRow>
-                                ))}
-                                {analytics.vendorPerformance.length === 0 && (
+                        {ops.vendorPerformance.length > 0 ? (
+                            <Table>
+                                <TableHeader>
                                     <TableRow>
-                                        <TableCell colSpan={3} className="text-center py-4 text-muted-foreground">No vendor data yet.</TableCell>
+                                        <TableHead>Vendor</TableHead>
+                                        <TableHead>Revenue</TableHead>
+                                        <TableHead>Items Sold</TableHead>
+                                        <TableHead>Orders</TableHead>
                                     </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
+                                </TableHeader>
+                                <TableBody>
+                                    {ops.vendorPerformance.map((v, i) => (
+                                        <TableRow key={i}>
+                                            <TableCell className="font-medium">{v.name}</TableCell>
+                                            <TableCell>R {v.revenue.toFixed(2)}</TableCell>
+                                            <TableCell>{v.itemsSold}</TableCell>
+                                            <TableCell>{v.orderCount}</TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        ) : (
+                            <p className="text-sm text-muted-foreground py-4 text-center">No vendor data yet.</p>
+                        )}
                     </CardContent>
                 </Card>
             </div>
