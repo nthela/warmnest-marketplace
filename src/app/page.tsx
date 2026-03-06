@@ -10,6 +10,8 @@ import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useCart } from "@/contexts/cart-context";
 import { ProductImageCarousel } from "@/components/ui/product-image-carousel";
+import { ProductRating } from "@/components/ui/product-rating";
+import { Id } from "../../convex/_generated/dataModel";
 import { useState, useEffect, useMemo } from "react";
 import {
     getRecentlyViewedIds,
@@ -36,6 +38,7 @@ function ProductCard({
             </Link>
             <CardContent className="p-3">
                 <h3 className="font-semibold text-sm mb-1 group-hover:text-primary transition-colors truncate">{product.name}</h3>
+                <ProductRating productId={product._id as Id<"products">} />
                 <div className="flex items-baseline gap-2 mb-2">
                     {product.salePrice ? (
                         <>

@@ -92,6 +92,18 @@ export default defineSchema({
   }).index("by_order", ["orderId"])
     .index("by_vendor", ["vendorId"]),
 
+  reviews: defineTable({
+    productId: v.id("products"),
+    userId: v.id("users"),
+    rating: v.number(), // 1–5
+    title: v.string(),
+    body: v.string(),
+    verifiedPurchase: v.boolean(),
+    createdAt: v.number(),
+  })
+    .index("by_product", ["productId"])
+    .index("by_user_product", ["userId", "productId"]),
+
   siteSettings: defineTable({
     key: v.string(), // e.g. "heroBanner"
     value: v.string(), // storage ID or URL

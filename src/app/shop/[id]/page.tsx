@@ -1,11 +1,11 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { Header } from "@/components/ui/header";
 import { Button } from "@/components/ui/button";
 import { useParams } from "next/navigation";
-import { ShoppingCart, Heart, Truck, ChevronLeft, ChevronRight, Store, Check } from "lucide-react";
+import { ShoppingCart, Heart, Truck, ChevronLeft, ChevronRight, Store, Check, Star, Trash2, BadgeCheck } from "lucide-react";
 import { useCart } from "@/contexts/cart-context";
 import { Badge } from "@/components/ui/badge";
 import { Id } from "../../../../convex/_generated/dataModel";
@@ -17,9 +17,25 @@ export default function ProductPage() {
     const productId = params.id as Id<"products">;
 
     const product = useQuery(api.products.get, { id: productId });
+    const reviews = useQuery(api.reviews.getByProduct, { productId });
+    const reviewStats = useQuery(api.reviews.getStats, { productId });
+    const canReviewResult = useQuery(api.reviews.userCanReview, { productId });
+    const currentUser = useQuery(api.users.currentUser);
+    const createReview = useMutation(api.reviews.create);
+    const deleteReview = useMutation(api.reviews.remove);
+
     const { addItem } = useCart();
     const [currentIndex, setCurrentIndex] = useState(0);
     const [added, setAdded] = useState(false);
+
+    // Review form state
+    const [showReviewForm, setShowReviewForm] = useState(false);
+    const [reviewRating, setReviewRating] = useState(0);
+    const [hoverRating, setHoverRating] = useState(0);
+    const [reviewTitle, setReviewTitle] = useState("");
+    const [reviewBody, setReviewBody] = useState("");
+    const [reviewSubmitting, setReviewSubmitting] = useState(false);
+    const [reviewError, setReviewError] = useState("");
 
     // Touch/swipe handling with drag tracking
     const carouselRef = useRef<HTMLDivElement>(null);
@@ -304,6 +320,206 @@ export default function ProductPage() {
                                     <span className="text-muted-foreground">Calculated at checkout</span>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Reviews Section */}
+                <div className="mt-12 border-t pt-8">
+                    <div className="flex flex-col md:flex-row md:items-start gap-8">
+                        {/* Rating Summary */}
+                        <div className="md:w-72 flex-shrink-0">
+                            <h2 className="text-2xl font-bold mb-4">Customer Reviews</h2>
+                            {reviewStats && reviewStats.count > 0 ? (
+                                <div className="space-y-3">
+                                    <div className="flex items-baseline gap-2">
+                                        <span className="text-4xl font-bold">{reviewStats.average}</span>
+                                        <div className="flex">
+                                            {[1, 2, 3, 4, 5].map((star) => (
+                                                <Star
+                                                    key={star}
+                                                    className={`h-5 w-5 ${star <= Math.round(reviewStats.average) ? "text-yellow-400 fill-yellow-400" : "text-gray-300"}`}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <p className="text-sm text-muted-foreground">{reviewStats.count} review{reviewStats.count !== 1 ? "s" : ""}</p>
+                                    <div className="space-y-1">
+                                        {[5, 4, 3, 2, 1].map((star) => {
+                                            const count = reviewStats.distribution[star - 1];
+                                            const pct = reviewStats.count > 0 ? (count / reviewStats.count) * 100 : 0;
+                                            return (
+                                                <div key={star} className="flex items-center gap-2 text-sm">
+                                                    <span className="w-3 text-right">{star}</span>
+                                                    <Star className="h-3.5 w-3.5 text-yellow-400 fill-yellow-400" />
+                                                    <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                                        <div className="h-full bg-yellow-400 rounded-full" style={{ width: `${pct}%` }} />
+                                                    </div>
+                                                    <span className="w-8 text-muted-foreground">{count}</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            ) : (
+                                <p className="text-muted-foreground">No reviews yet. Be the first!</p>
+                            )}
+
+                            {/* Write Review Button */}
+                            {canReviewResult?.canReview && (
+                                <Button
+                                    className="mt-4 w-full"
+                                    onClick={() => setShowReviewForm(true)}
+                                >
+                                    Write a Review
+                                </Button>
+                            )}
+                            {canReviewResult?.reason === "sign_in" && (
+                                <p className="mt-4 text-sm text-muted-foreground">Sign in to leave a review.</p>
+                            )}
+                            {canReviewResult?.reason === "already_reviewed" && (
+                                <p className="mt-4 text-sm text-muted-foreground">You&apos;ve already reviewed this product.</p>
+                            )}
+                        </div>
+
+                        {/* Review Form + Review List */}
+                        <div className="flex-1 min-w-0">
+                            {/* Review Form */}
+                            {showReviewForm && (
+                                <div className="bg-white border rounded-lg p-6 mb-6">
+                                    <h3 className="text-lg font-semibold mb-4">Write Your Review</h3>
+                                    {reviewError && (
+                                        <div className="bg-red-50 text-red-600 text-sm p-3 rounded mb-4">{reviewError}</div>
+                                    )}
+                                    <div className="space-y-4">
+                                        {/* Star Rating */}
+                                        <div>
+                                            <label className="text-sm font-medium block mb-1">Rating</label>
+                                            <div className="flex gap-1">
+                                                {[1, 2, 3, 4, 5].map((star) => (
+                                                    <button
+                                                        key={star}
+                                                        type="button"
+                                                        onClick={() => setReviewRating(star)}
+                                                        onMouseEnter={() => setHoverRating(star)}
+                                                        onMouseLeave={() => setHoverRating(0)}
+                                                        className="p-0.5"
+                                                    >
+                                                        <Star
+                                                            className={`h-7 w-7 transition-colors ${
+                                                                star <= (hoverRating || reviewRating)
+                                                                    ? "text-yellow-400 fill-yellow-400"
+                                                                    : "text-gray-300"
+                                                            }`}
+                                                        />
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        {/* Title */}
+                                        <div>
+                                            <label className="text-sm font-medium block mb-1">Title</label>
+                                            <input
+                                                type="text"
+                                                value={reviewTitle}
+                                                onChange={(e) => setReviewTitle(e.target.value)}
+                                                placeholder="Summarize your experience"
+                                                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                                                maxLength={100}
+                                            />
+                                        </div>
+                                        {/* Body */}
+                                        <div>
+                                            <label className="text-sm font-medium block mb-1">Review</label>
+                                            <textarea
+                                                value={reviewBody}
+                                                onChange={(e) => setReviewBody(e.target.value)}
+                                                placeholder="Tell others what you think about this product..."
+                                                className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary min-h-[100px] resize-y"
+                                                maxLength={1000}
+                                            />
+                                        </div>
+                                        {/* Actions */}
+                                        <div className="flex gap-3">
+                                            <Button
+                                                disabled={reviewSubmitting || reviewRating === 0 || !reviewTitle.trim() || !reviewBody.trim()}
+                                                onClick={async () => {
+                                                    setReviewSubmitting(true);
+                                                    setReviewError("");
+                                                    try {
+                                                        await createReview({
+                                                            productId,
+                                                            rating: reviewRating,
+                                                            title: reviewTitle.trim(),
+                                                            body: reviewBody.trim(),
+                                                        });
+                                                        setShowReviewForm(false);
+                                                        setReviewRating(0);
+                                                        setReviewTitle("");
+                                                        setReviewBody("");
+                                                    } catch (err: unknown) {
+                                                        setReviewError(err instanceof Error ? err.message : "Failed to submit review.");
+                                                    } finally {
+                                                        setReviewSubmitting(false);
+                                                    }
+                                                }}
+                                            >
+                                                {reviewSubmitting ? "Submitting..." : "Submit Review"}
+                                            </Button>
+                                            <Button variant="outline" onClick={() => { setShowReviewForm(false); setReviewError(""); }}>
+                                                Cancel
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Review List */}
+                            {reviews && reviews.length > 0 ? (
+                                <div className="space-y-4">
+                                    {reviews.map((review) => (
+                                        <div key={review._id} className="bg-white border rounded-lg p-5">
+                                            <div className="flex items-start justify-between gap-4">
+                                                <div className="min-w-0">
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                        <div className="flex">
+                                                            {[1, 2, 3, 4, 5].map((star) => (
+                                                                <Star
+                                                                    key={star}
+                                                                    className={`h-4 w-4 ${star <= review.rating ? "text-yellow-400 fill-yellow-400" : "text-gray-300"}`}
+                                                                />
+                                                            ))}
+                                                        </div>
+                                                        {review.verifiedPurchase && (
+                                                            <span className="inline-flex items-center gap-1 text-xs text-green-700 bg-green-50 px-2 py-0.5 rounded-full">
+                                                                <BadgeCheck className="h-3 w-3" /> Verified Purchase
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <h4 className="font-semibold">{review.title}</h4>
+                                                    <p className="text-sm text-muted-foreground mt-1">{review.body}</p>
+                                                    <p className="text-xs text-muted-foreground mt-2">
+                                                        {review.userName} &middot; {new Date(review.createdAt).toLocaleDateString()}
+                                                    </p>
+                                                </div>
+                                                {(currentUser?._id === review.userId || currentUser?.role === "admin") && (
+                                                    <button
+                                                        onClick={() => deleteReview({ reviewId: review._id })}
+                                                        className="text-muted-foreground hover:text-red-500 transition-colors p-1 flex-shrink-0"
+                                                        title="Delete review"
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                !showReviewForm && (
+                                    <p className="text-muted-foreground py-8 text-center">No reviews yet for this product.</p>
+                                )
+                            )}
                         </div>
                     </div>
                 </div>

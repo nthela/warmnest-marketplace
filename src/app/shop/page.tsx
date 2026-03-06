@@ -25,11 +25,13 @@ import {
     Search,
 } from "lucide-react";
 import { ProductImageCarousel } from "@/components/ui/product-image-carousel";
+import { ProductRating } from "@/components/ui/product-rating";
 import {
     getRecentlyViewedIds,
     getTopCategories,
     getLastViewedCategory,
 } from "@/lib/browsing-history";
+import { Id } from "../../../convex/_generated/dataModel";
 
 // Reusable product card — same sizing as homepage
 function ProductCard({
@@ -50,6 +52,7 @@ function ProductCard({
             </Link>
             <CardContent className="p-3">
                 <h3 className="font-semibold text-sm mb-1 group-hover:text-primary transition-colors truncate">{product.name}</h3>
+                <ProductRating productId={product._id as Id<"products">} />
                 <div className="flex items-baseline gap-2 mb-2">
                     {product.salePrice ? (
                         <>
