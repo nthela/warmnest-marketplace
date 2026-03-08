@@ -39,8 +39,25 @@ export default function CheckoutPage() {
     const [selectedRate, setSelectedRate] = useState<ShippingRate | null>(null);
     const [loadingRates, setLoadingRates] = useState(false);
     const [placing, setPlacing] = useState(false);
+    const [couponCode, setCouponCode] = useState("");
+    const [couponApplied, setCouponApplied] = useState(false);
+    const [couponError, setCouponError] = useState("");
 
     const cartTotal = getTotal();
+
+    const FREE_SHIPPING_COUPONS = ["FREESHIP", "WARMNEST", "FREEDELIVERY"];
+
+    const applyCoupon = () => {
+        if (FREE_SHIPPING_COUPONS.includes(couponCode.trim().toUpperCase())) {
+            setCouponApplied(true);
+            setCouponError("");
+        } else {
+            setCouponApplied(false);
+            setCouponError("Invalid coupon code");
+        }
+    };
+
+    const shippingCost = couponApplied ? 0 : (selectedRate?.price ?? 0);
 
     const handleAddressSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -61,7 +78,7 @@ export default function CheckoutPage() {
         setPlacing(true);
 
         try {
-            const totalAmount = cartTotal + selectedRate.price;
+            const totalAmount = cartTotal + shippingCost;
 
             // 1. Create order in Convex (status: pending)
             const orderId = await createOrder({
@@ -214,9 +231,27 @@ export default function CheckoutPage() {
                                                 <div className="font-semibold">{rate.name}</div>
                                                 <div className="text-sm text-muted-foreground">{rate.days} {rate.days === 1 ? "Day" : "Days"}</div>
                                             </div>
-                                            <div className="font-bold">R {rate.price.toFixed(2)}</div>
+                                            <div className="font-bold">
+                                                {couponApplied ? <><span className="line-through text-muted-foreground mr-2">R {rate.price.toFixed(2)}</span><span className="text-green-600">R 0.00</span></> : <>R {rate.price.toFixed(2)}</>}
+                                            </div>
                                         </div>
                                     ))}
+                                    <div className="pt-2 border-t">
+                                        <Label className="text-sm mb-2 block">Shipping Coupon</Label>
+                                        <div className="flex gap-2">
+                                            <Input
+                                                placeholder="Enter coupon code"
+                                                value={couponCode}
+                                                onChange={e => { setCouponCode(e.target.value); setCouponError(""); }}
+                                                className="flex-1"
+                                            />
+                                            <Button type="button" variant="outline" onClick={applyCoupon} disabled={!couponCode.trim()}>
+                                                Apply
+                                            </Button>
+                                        </div>
+                                        {couponApplied && <p className="text-sm text-green-600 mt-1">Free shipping applied!</p>}
+                                        {couponError && <p className="text-sm text-red-500 mt-1">{couponError}</p>}
+                                    </div>
                                 </CardContent>
                             )}
                         </Card>
@@ -233,9 +268,13 @@ export default function CheckoutPage() {
                                 <CardContent className="space-y-6">
                                     <div className="bg-muted p-4 rounded space-y-2">
                                         <div className="flex justify-between"><span>Cart Total</span><span>R {cartTotal.toFixed(2)}</span></div>
-                                        <div className="flex justify-between"><span>Shipping ({selectedRate.name})</span><span>R {selectedRate.price.toFixed(2)}</span></div>
+                                        <div className="flex justify-between">
+                                            <span>Shipping ({selectedRate.name})</span>
+                                            <span>{couponApplied ? <><span className="line-through text-muted-foreground mr-1">R {selectedRate.price.toFixed(2)}</span> <span className="text-green-600">R 0.00</span></> : <>R {selectedRate.price.toFixed(2)}</>}</span>
+                                        </div>
+                                        {couponApplied && <div className="text-xs text-green-600">Coupon applied: Free shipping</div>}
                                         <hr />
-                                        <div className="flex justify-between font-bold text-lg"><span>Total</span><span>R {(cartTotal + selectedRate.price).toFixed(2)}</span></div>
+                                        <div className="flex justify-between font-bold text-lg"><span>Total</span><span>R {(cartTotal + shippingCost).toFixed(2)}</span></div>
                                     </div>
 
                                     <Button size="lg" className="w-full" onClick={handlePayment} disabled={placing}>
