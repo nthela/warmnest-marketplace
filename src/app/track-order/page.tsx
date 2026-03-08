@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useQuery } from "convex/react";
 import { useSearchParams } from "next/navigation";
 import { api } from "../../../convex/_generated/api";
@@ -10,11 +10,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search, Package } from "lucide-react";
 
-export default function TrackOrderPage() {
+function TrackOrderContent() {
     const searchParams = useSearchParams();
     const idFromUrl = searchParams.get("id") || "";
     const [orderId, setOrderId] = useState(idFromUrl);
-    const [queryId, setQueryId] = useState(idFromUrl); // actual ID to query
+    const [queryId, setQueryId] = useState(idFromUrl);
 
     useEffect(() => {
         if (idFromUrl) {
@@ -33,83 +33,95 @@ export default function TrackOrderPage() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50">
-            <Header />
-            <div className="container mx-auto px-4 py-12 flex flex-col items-center">
-                <h1 className="text-3xl font-bold mb-8">Track Your Order</h1>
+        <div className="container mx-auto px-4 py-12 flex flex-col items-center">
+            <h1 className="text-3xl font-bold mb-8">Track Your Order</h1>
 
-                <Card className="w-full max-w-md mb-8">
-                    <CardHeader>
-                        <CardTitle>Enter Order Number</CardTitle>
+            <Card className="w-full max-w-md mb-8">
+                <CardHeader>
+                    <CardTitle>Enter Order Number</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <form onSubmit={handleTrack} className="flex gap-2">
+                        <Input
+                            placeholder="Order ID (e.g. 3k7...)"
+                            value={orderId}
+                            onChange={(e) => setOrderId(e.target.value)}
+                        />
+                        <Button type="submit">
+                            <Search className="h-4 w-4" />
+                        </Button>
+                    </form>
+                </CardContent>
+            </Card>
+
+            {queryId && !order && order !== null && (
+                <div className="text-center">Searching...</div>
+            )}
+
+            {queryId && order === null && (
+                <div className="text-red-500 font-medium">Order not found. Please check the ID.</div>
+            )}
+
+            {order && (
+                <Card className="w-full max-w-2xl animate-in fade-in-50 slide-in-from-bottom-4">
+                    <CardHeader className="border-b bg-muted/20">
+                        <div className="flex justify-between items-center">
+                            <CardTitle>Order Details</CardTitle>
+                            <span className={`px-3 py-1 rounded-full text-sm font-bold capitalize
+                  ${order.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                    order.status === 'shipped' ? 'bg-blue-100 text-blue-700' :
+                                        'bg-yellow-100 text-yellow-700'
+                                }`}>
+                                {order.status}
+                            </span>
+                        </div>
                     </CardHeader>
-                    <CardContent>
-                        <form onSubmit={handleTrack} className="flex gap-2">
-                            <Input
-                                placeholder="Order ID (e.g. 3k7...)"
-                                value={orderId}
-                                onChange={(e) => setOrderId(e.target.value)}
-                            />
-                            <Button type="submit">
-                                <Search className="h-4 w-4" />
-                            </Button>
-                        </form>
+                    <CardContent className="p-6 space-y-4">
+                        <div className="flex items-center gap-4">
+                            <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+                                <Package className="h-6 w-6" />
+                            </div>
+                            <div>
+                                <div className="text-sm text-muted-foreground">Order ID</div>
+                                <div className="font-mono">{order._id}</div>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 text-sm mt-4">
+                            <div>
+                                <span className="text-muted-foreground block">Total Amount</span>
+                                <span className="font-semibold text-lg">R {order.totalAmount}</span>
+                            </div>
+                            <div>
+                                <span className="text-muted-foreground block">Order Date</span>
+                                <span className="font-semibold">{new Date(order.createdAt).toLocaleDateString()}</span>
+                            </div>
+                        </div>
+
+                        <div className="bg-muted p-4 rounded-md text-sm">
+                            <div className="font-semibold mb-2">Shipping To:</div>
+                            <p>{order.shippingAddress?.street}</p>
+                            <p>{order.shippingAddress?.city}, {order.shippingAddress?.code}</p>
+                            <p>{order.shippingAddress?.country}</p>
+                        </div>
                     </CardContent>
                 </Card>
+            )}
+        </div>
+    );
+}
 
-                {queryId && !order && order !== null && (
-                    <div className="text-center">Searching...</div>
-                )}
-
-                {queryId && order === null && (
-                    <div className="text-red-500 font-medium">Order not found. Please check the ID.</div>
-                )}
-
-                {order && (
-                    <Card className="w-full max-w-2xl animate-in fade-in-50 slide-in-from-bottom-4">
-                        <CardHeader className="border-b bg-muted/20">
-                            <div className="flex justify-between items-center">
-                                <CardTitle>Order Details</CardTitle>
-                                <span className={`px-3 py-1 rounded-full text-sm font-bold capitalize
-                  ${order.status === 'completed' ? 'bg-green-100 text-green-700' :
-                                        order.status === 'shipped' ? 'bg-blue-100 text-blue-700' :
-                                            'bg-yellow-100 text-yellow-700'
-                                    }`}>
-                                    {order.status}
-                                </span>
-                            </div>
-                        </CardHeader>
-                        <CardContent className="p-6 space-y-4">
-                            <div className="flex items-center gap-4">
-                                <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center text-primary">
-                                    <Package className="h-6 w-6" />
-                                </div>
-                                <div>
-                                    <div className="text-sm text-muted-foreground">Order ID</div>
-                                    <div className="font-mono">{order._id}</div>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4 text-sm mt-4">
-                                <div>
-                                    <span className="text-muted-foreground block">Total Amount</span>
-                                    <span className="font-semibold text-lg">R {order.totalAmount}</span>
-                                </div>
-                                <div>
-                                    <span className="text-muted-foreground block">Order Date</span>
-                                    <span className="font-semibold">{new Date(order.createdAt).toLocaleDateString()}</span>
-                                </div>
-                            </div>
-
-                            <div className="bg-muted p-4 rounded-md text-sm">
-                                <div className="font-semibold mb-2">Shipping To:</div>
-                                <p>{order.shippingAddress?.street}</p>
-                                <p>{order.shippingAddress?.city}, {order.shippingAddress?.code}</p>
-                                <p>{order.shippingAddress?.country}</p>
-                            </div>
-                        </CardContent>
-                    </Card>
-                )}
-            </div>
+export default function TrackOrderPage() {
+    return (
+        <div className="min-h-screen bg-slate-50">
+            <Header />
+            <Suspense fallback={
+                <div className="container mx-auto px-4 py-12 flex justify-center">
+                    <p className="text-muted-foreground">Loading...</p>
+                </div>
+            }>
+                <TrackOrderContent />
+            </Suspense>
         </div>
     );
 }
