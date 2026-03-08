@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { query, mutation } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { internal } from "./_generated/api";
 
 export const get = query({
     args: { orderId: v.string() },
@@ -165,6 +166,12 @@ export const create = mutation({
             await ctx.db.patch(productId, {
                 stock: product.stock - quantity,
             });
+        }
+
+        // Send confirmation emails for free orders (paid orders get emails from PayFast webhook)
+        if (isFreeOrder) {
+            await ctx.scheduler.runAfter(0, internal.email.sendOrderConfirmation, { orderId: orderId as string });
+            await ctx.scheduler.runAfter(0, internal.email.sendVendorNewOrderAlert, { orderId: orderId as string });
         }
 
         return orderId;
