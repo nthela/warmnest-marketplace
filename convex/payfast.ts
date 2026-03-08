@@ -148,7 +148,7 @@ export const verifyAndProcessITN = internalAction({
         if (paymentStatus === "COMPLETE") {
             await ctx.runMutation(internal.payfastWebhook.updateOrderPayment, {
                 orderId,
-                status: "completed",
+                status: "paid",
                 paymentId: pfPaymentId,
             });
 

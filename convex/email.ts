@@ -189,9 +189,14 @@ function shippingUpdateHtml(order: {
             message: "Your package is on its way. You can track its progress using the button below.",
             color: "#7c3aed",
         },
-        completed: {
+        delivered: {
             title: "Your order has been delivered!",
-            message: "Your order has been marked as completed. We hope you love your purchase!",
+            message: "Your package has arrived. We hope you love your purchase!",
+            color: "#059669",
+        },
+        completed: {
+            title: "Your order is complete!",
+            message: "Your order has been finalised. Thank you for shopping with WarmNest!",
             color: "#16a34a",
         },
         cancelled: {
@@ -215,7 +220,7 @@ function shippingUpdateHtml(order: {
     return emailLayout(`
         <div style="text-align:center;margin-bottom:24px;">
             <div style="display:inline-block;width:48px;height:48px;border-radius:50%;background-color:${info.color}20;line-height:48px;font-size:24px;">
-                ${order.status === "shipped" ? "📦" : order.status === "completed" ? "✅" : order.status === "cancelled" ? "❌" : "⏳"}
+                ${order.status === "shipped" ? "📦" : order.status === "delivered" ? "📬" : order.status === "completed" ? "✅" : order.status === "cancelled" ? "❌" : "⏳"}
             </div>
         </div>
 
@@ -420,7 +425,7 @@ export const sendShippingUpdate = internalAction({
         await sendEmail({
             to: order.customerEmail,
             toName: order.customerName,
-            subject: `Order ${args.status === "shipped" ? "Shipped" : args.status === "completed" ? "Delivered" : "Update"} — ${args.orderId}`,
+            subject: `Order ${args.status === "shipped" ? "Shipped" : args.status === "delivered" ? "Delivered" : args.status === "completed" ? "Complete" : "Update"} — ${args.orderId}`,
             htmlBody: shippingUpdateHtml({
                 orderId: args.orderId,
                 status: args.status,

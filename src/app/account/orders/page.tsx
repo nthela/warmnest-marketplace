@@ -30,11 +30,12 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.
     paid: { label: "Paid", color: "bg-blue-100 text-blue-700", icon: <CreditCard className="h-4 w-4" /> },
     processing: { label: "Processing", color: "bg-indigo-100 text-indigo-700", icon: <Package className="h-4 w-4" /> },
     shipped: { label: "Shipped", color: "bg-purple-100 text-purple-700", icon: <Truck className="h-4 w-4" /> },
+    delivered: { label: "Delivered", color: "bg-emerald-100 text-emerald-700", icon: <CheckCircle2 className="h-4 w-4" /> },
     completed: { label: "Completed", color: "bg-green-100 text-green-700", icon: <CheckCircle2 className="h-4 w-4" /> },
     cancelled: { label: "Cancelled", color: "bg-red-100 text-red-700", icon: <XCircle className="h-4 w-4" /> },
 };
 
-type StatusFilter = "all" | "pending" | "paid" | "processing" | "shipped" | "completed" | "cancelled";
+type StatusFilter = "all" | "pending" | "paid" | "processing" | "shipped" | "delivered" | "completed" | "cancelled";
 
 export default function OrderHistoryPage() {
     const { isAuthenticated, isLoading: authLoading } = useConvexAuth();

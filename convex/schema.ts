@@ -70,6 +70,7 @@ export default defineSchema({
       v.literal("paid"),
       v.literal("processing"),
       v.literal("shipped"),
+      v.literal("delivered"),
       v.literal("completed"),
       v.literal("cancelled")
     ),

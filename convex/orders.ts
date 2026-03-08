@@ -141,13 +141,13 @@ export const create = mutation({
             productsToUpdate.push({ productId: item.productId, product, quantity: item.quantity });
         }
 
-        // Free orders (R0 total with coupon) are completed immediately
+        // Free orders (R0 total with coupon) are marked as paid immediately
         const isFreeOrder = args.totalAmount === 0 && args.couponCode;
 
         const orderId = await ctx.db.insert("orders", {
             userId,
             totalAmount: args.totalAmount,
-            status: isFreeOrder ? "completed" : "pending",
+            status: isFreeOrder ? "paid" : "pending",
             paymentId: isFreeOrder ? `coupon:${args.couponCode}` : args.paymentId,
             shippingAddress: args.shippingAddress,
             createdAt: Date.now(),

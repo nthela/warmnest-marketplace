@@ -19,7 +19,7 @@ import { Label } from "@/components/ui/label";
 
 type Tab = "overview" | "waitlist" | "users" | "vendors" | "products" | "orders" | "analytics" | "settings";
 
-const ORDER_STATUSES = ["pending", "paid", "processing", "shipped", "completed", "cancelled"] as const;
+const ORDER_STATUSES = ["pending", "paid", "processing", "shipped", "delivered", "completed", "cancelled"] as const;
 
 export default function AdminDashboard() {
     const user = useQuery(api.users.currentUser);
@@ -960,6 +960,7 @@ function OperationsSection() {
         { key: "paid", label: "Paid", color: "bg-blue-400" },
         { key: "processing", label: "Processing", color: "bg-indigo-400" },
         { key: "shipped", label: "Shipped", color: "bg-cyan-400" },
+        { key: "delivered", label: "Delivered", color: "bg-emerald-400" },
         { key: "completed", label: "Completed", color: "bg-green-400" },
         { key: "cancelled", label: "Cancelled", color: "bg-red-400" },
     ];

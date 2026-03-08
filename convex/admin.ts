@@ -285,6 +285,7 @@ export const updateOrderStatus = mutation({
             v.literal("paid"),
             v.literal("processing"),
             v.literal("shipped"),
+            v.literal("delivered"),
             v.literal("completed"),
             v.literal("cancelled")
         ),
@@ -294,7 +295,7 @@ export const updateOrderStatus = mutation({
         await ctx.db.patch(args.orderId, { status: args.status });
 
         // Send email notification for status changes customers care about
-        const notifyStatuses = ["shipped", "completed", "cancelled", "processing"];
+        const notifyStatuses = ["shipped", "delivered", "completed", "cancelled", "processing"];
         if (notifyStatuses.includes(args.status)) {
             await ctx.scheduler.runAfter(0, internal.email.sendShippingUpdate, {
                 orderId: args.orderId,

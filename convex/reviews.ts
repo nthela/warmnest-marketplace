@@ -112,8 +112,9 @@ export const create = mutation({
             .filter((q) =>
                 q.or(
                     q.eq(q.field("status"), "paid"),
-                    q.eq(q.field("status"), "completed"),
-                    q.eq(q.field("status"), "shipped")
+                    q.eq(q.field("status"), "shipped"),
+                    q.eq(q.field("status"), "delivered"),
+                    q.eq(q.field("status"), "completed")
                 )
             )
             .collect();
