@@ -45,7 +45,7 @@ export const getOrderForVerification = internalQuery({
 export const updateOrderPayment = internalMutation({
     args: {
         orderId: v.string(),
-        status: v.union(v.literal("paid"), v.literal("cancelled")),
+        status: v.union(v.literal("paid"), v.literal("completed"), v.literal("cancelled")),
         paymentId: v.string(),
     },
     handler: async (ctx, args) => {

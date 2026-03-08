@@ -45,7 +45,12 @@ export default function CheckoutPage() {
 
     const cartTotal = getTotal();
 
+    const [discountCode, setDiscountCode] = useState("");
+    const [discountApplied, setDiscountApplied] = useState(false);
+    const [discountError, setDiscountError] = useState("");
+
     const FREE_SHIPPING_COUPONS = ["FREESHIP", "WARMNEST", "FREEDELIVERY"];
+    const FREE_ORDER_COUPONS = ["WARMNEST100", "FREEORDER", "LAUNCH2026"];
 
     const applyCoupon = () => {
         if (FREE_SHIPPING_COUPONS.includes(couponCode.trim().toUpperCase())) {
@@ -57,7 +62,19 @@ export default function CheckoutPage() {
         }
     };
 
+    const applyDiscount = () => {
+        if (FREE_ORDER_COUPONS.includes(discountCode.trim().toUpperCase())) {
+            setDiscountApplied(true);
+            setDiscountError("");
+        } else {
+            setDiscountApplied(false);
+            setDiscountError("Invalid coupon code");
+        }
+    };
+
     const shippingCost = couponApplied ? 0 : (selectedRate?.price ?? 0);
+    const discountAmount = discountApplied ? cartTotal : 0;
+    const finalTotal = Math.max(0, cartTotal - discountAmount + shippingCost);
 
     const handleAddressSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -78,11 +95,9 @@ export default function CheckoutPage() {
         setPlacing(true);
 
         try {
-            const totalAmount = cartTotal + shippingCost;
-
-            // 1. Create order in Convex (status: pending)
-            const orderId = await createOrder({
-                totalAmount,
+            const orderArgs = {
+                totalAmount: finalTotal,
+                couponCode: discountApplied ? discountCode.trim().toUpperCase() : undefined,
                 shippingAddress: {
                     street: address.street,
                     city: address.city,
@@ -95,19 +110,25 @@ export default function CheckoutPage() {
                     quantity: item.quantity,
                     price: item.price,
                 })),
-            });
+            };
 
-            // 2. Get signed PayFast form data from Convex action
+            const orderId = await createOrder(orderArgs);
+
+            sessionStorage.setItem("warmnest-pending-order", orderId as string);
+
+            // Free order — skip PayFast, go straight to success
+            if (finalTotal === 0) {
+                window.location.href = `/checkout/success?orderId=${orderId as string}`;
+                return;
+            }
+
+            // Paid order — redirect to PayFast
             const paymentData = await buildPaymentData({
                 orderId: orderId as string,
-                amount: totalAmount,
+                amount: finalTotal,
                 itemName: `WarmNest Order #${(orderId as string).slice(-8)}`,
             });
 
-            // 3. Store orderId so success page can clear the cart
-            sessionStorage.setItem("warmnest-pending-order", orderId as string);
-
-            // 4. Submit hidden form to PayFast (navigates away from page)
             submitPayFastForm(paymentData as Record<string, string>);
         } catch (error) {
             console.error("Failed to initiate payment:", error);
@@ -268,19 +289,43 @@ export default function CheckoutPage() {
                                 <CardContent className="space-y-6">
                                     <div className="bg-muted p-4 rounded space-y-2">
                                         <div className="flex justify-between"><span>Cart Total</span><span>R {cartTotal.toFixed(2)}</span></div>
+                                        {discountApplied && (
+                                            <div className="flex justify-between text-green-600">
+                                                <span>Discount (100% off)</span>
+                                                <span>- R {discountAmount.toFixed(2)}</span>
+                                            </div>
+                                        )}
                                         <div className="flex justify-between">
                                             <span>Shipping ({selectedRate.name})</span>
                                             <span>{couponApplied ? <><span className="line-through text-muted-foreground mr-1">R {selectedRate.price.toFixed(2)}</span> <span className="text-green-600">R 0.00</span></> : <>R {selectedRate.price.toFixed(2)}</>}</span>
                                         </div>
                                         {couponApplied && <div className="text-xs text-green-600">Coupon applied: Free shipping</div>}
                                         <hr />
-                                        <div className="flex justify-between font-bold text-lg"><span>Total</span><span>R {(cartTotal + shippingCost).toFixed(2)}</span></div>
+                                        <div className="flex justify-between font-bold text-lg"><span>Total</span><span>R {finalTotal.toFixed(2)}</span></div>
+                                    </div>
+
+                                    {/* Discount Coupon */}
+                                    <div className="border rounded p-4">
+                                        <Label className="text-sm mb-2 block">Discount Coupon</Label>
+                                        <div className="flex gap-2">
+                                            <Input
+                                                placeholder="Enter discount code"
+                                                value={discountCode}
+                                                onChange={e => { setDiscountCode(e.target.value); setDiscountError(""); }}
+                                                className="flex-1"
+                                            />
+                                            <Button type="button" variant="outline" onClick={applyDiscount} disabled={!discountCode.trim()}>
+                                                Apply
+                                            </Button>
+                                        </div>
+                                        {discountApplied && <p className="text-sm text-green-600 mt-1">100% discount applied!</p>}
+                                        {discountError && <p className="text-sm text-red-500 mt-1">{discountError}</p>}
                                     </div>
 
                                     <Button size="lg" className="w-full" onClick={handlePayment} disabled={placing}>
-                                        {placing ? "Redirecting to PayFast..." : "Pay Securely via PayFast"}
+                                        {placing ? (finalTotal === 0 ? "Placing Order..." : "Redirecting to PayFast...") : (finalTotal === 0 ? "Place Free Order" : "Pay Securely via PayFast")}
                                     </Button>
-                                    <p className="text-xs text-center text-muted-foreground">Encryption by PayFast. Cards & EFT accepted.</p>
+                                    {finalTotal > 0 && <p className="text-xs text-center text-muted-foreground">Encryption by PayFast. Cards & EFT accepted.</p>}
                                 </CardContent>
                             )}
                         </Card>

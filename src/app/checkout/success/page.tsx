@@ -29,7 +29,7 @@ function SuccessContent() {
         }
     }, [orderId, clearCart]);
 
-    const isPaid = order?.status === "paid";
+    const isPaid = order?.status === "paid" || order?.status === "completed";
     const isPending = order?.status === "pending";
     const isCancelled = order?.status === "cancelled";
 

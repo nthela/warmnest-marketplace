@@ -100,6 +100,7 @@ export const create = mutation({
     args: {
         totalAmount: v.number(),
         paymentId: v.optional(v.string()),
+        couponCode: v.optional(v.string()),
         shippingAddress: v.object({
             street: v.string(),
             city: v.string(),
@@ -139,11 +140,14 @@ export const create = mutation({
             productsToUpdate.push({ productId: item.productId, product, quantity: item.quantity });
         }
 
+        // Free orders (R0 total with coupon) are completed immediately
+        const isFreeOrder = args.totalAmount === 0 && args.couponCode;
+
         const orderId = await ctx.db.insert("orders", {
             userId,
             totalAmount: args.totalAmount,
-            status: "pending",
-            paymentId: args.paymentId,
+            status: isFreeOrder ? "completed" : "pending",
+            paymentId: isFreeOrder ? `coupon:${args.couponCode}` : args.paymentId,
             shippingAddress: args.shippingAddress,
             createdAt: Date.now(),
         });
