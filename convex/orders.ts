@@ -8,7 +8,20 @@ export const get = query({
         try {
             const normalizeId = ctx.db.normalizeId("orders", args.orderId);
             if (!normalizeId) return null;
-            return await ctx.db.get(normalizeId);
+
+            const order = await ctx.db.get(normalizeId);
+            if (!order) return null;
+
+            // Auth check: only the order owner or an admin can view order details
+            const userId = await getAuthUserId(ctx);
+            if (!userId) return null;
+
+            if (order.userId !== userId) {
+                const user = await ctx.db.get(userId);
+                if (!user || user.role !== "admin") return null;
+            }
+
+            return order;
         } catch {
             return null;
         }
@@ -20,17 +33,62 @@ export const getByUser = query({
     handler: async (ctx) => {
         const userId = await getAuthUserId(ctx);
         if (!userId) return [];
-        return await ctx.db
+
+        const orders = await ctx.db
             .query("orders")
             .withIndex("by_user", (q) => q.eq("userId", userId))
             .order("desc")
             .collect();
+
+        const ordersWithItems = await Promise.all(
+            orders.map(async (order) => {
+                const items = await ctx.db
+                    .query("orderItems")
+                    .withIndex("by_order", (q) => q.eq("orderId", order._id))
+                    .collect();
+
+                const itemsWithProducts = await Promise.all(
+                    items.map(async (item) => {
+                        const product = await ctx.db.get(item.productId);
+                        let imageUrl: string | null = null;
+                        if (product?.images?.[0]) {
+                            try {
+                                imageUrl = await ctx.storage.getUrl(product.images[0] as any);
+                            } catch {
+                                imageUrl = product.images[0].startsWith("http") ? product.images[0] : null;
+                            }
+                        }
+                        return {
+                            ...item,
+                            productName: product?.name ?? "Deleted product",
+                            productImage: imageUrl,
+                        };
+                    })
+                );
+
+                return { ...order, items: itemsWithProducts };
+            })
+        );
+
+        return ordersWithItems;
     },
 });
 
 export const getOrderItems = query({
     args: { orderId: v.id("orders") },
     handler: async (ctx, args) => {
+        // Auth check: only order owner or admin can view items
+        const userId = await getAuthUserId(ctx);
+        if (!userId) return [];
+
+        const order = await ctx.db.get(args.orderId);
+        if (!order) return [];
+
+        if (order.userId !== userId) {
+            const user = await ctx.db.get(userId);
+            if (!user || user.role !== "admin") return [];
+        }
+
         return await ctx.db
             .query("orderItems")
             .withIndex("by_order", (q) => q.eq("orderId", args.orderId))
@@ -63,6 +121,24 @@ export const create = mutation({
             throw new Error("You must be signed in to place an order.");
         }
 
+        // Validate stock for all items before creating the order
+        const productsToUpdate: { productId: typeof args.items[0]["productId"]; product: { vendorId: any; stock: number }; quantity: number }[] = [];
+        for (const item of args.items) {
+            const product = await ctx.db.get(item.productId);
+            if (!product) {
+                throw new Error(`Product not found: ${item.productId}`);
+            }
+            if (!product.isActive) {
+                throw new Error(`Product "${product.name}" is no longer available.`);
+            }
+            if (product.stock < item.quantity) {
+                throw new Error(
+                    `Insufficient stock for "${product.name}". Only ${product.stock} left in stock.`
+                );
+            }
+            productsToUpdate.push({ productId: item.productId, product, quantity: item.quantity });
+        }
+
         const orderId = await ctx.db.insert("orders", {
             userId,
             totalAmount: args.totalAmount,
@@ -72,16 +148,18 @@ export const create = mutation({
             createdAt: Date.now(),
         });
 
-        for (const item of args.items) {
-            const product = await ctx.db.get(item.productId);
-            if (!product) continue;
-
+        // Insert order items and decrement stock atomically
+        for (const { productId, product, quantity } of productsToUpdate) {
             await ctx.db.insert("orderItems", {
                 orderId,
-                productId: item.productId,
+                productId,
                 vendorId: product.vendorId,
-                quantity: item.quantity,
-                price: item.price,
+                quantity,
+                price: args.items.find((i) => i.productId === productId)!.price,
+            });
+
+            await ctx.db.patch(productId, {
+                stock: product.stock - quantity,
             });
         }
 

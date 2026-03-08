@@ -10,6 +10,7 @@ export default defineSchema({
     email: v.optional(v.string()),
     phone: v.optional(v.string()),
     image: v.optional(v.string()),
+    emailVerified: v.optional(v.boolean()),
     address: v.optional(v.object({
       street: v.string(),
       city: v.string(),
@@ -19,6 +20,14 @@ export default defineSchema({
     role: v.union(v.literal("admin"), v.literal("vendor"), v.literal("customer")),
     vendorId: v.optional(v.id("vendors")),
   }).index("by_email", ["email"]),
+
+  emailVerificationTokens: defineTable({
+    userId: v.id("users"),
+    token: v.string(),
+    expiresAt: v.number(),
+  })
+    .index("by_token", ["token"])
+    .index("by_user", ["userId"]),
 
   vendors: defineTable({
     userId: v.id("users"),
@@ -108,5 +117,13 @@ export default defineSchema({
     key: v.string(), // e.g. "heroBanner"
     value: v.string(), // storage ID or URL
   }).index("by_key", ["key"]),
+
+  wishlist: defineTable({
+    userId: v.id("users"),
+    productId: v.id("products"),
+    createdAt: v.number(),
+  })
+    .index("by_user", ["userId"])
+    .index("by_user_product", ["userId", "productId"]),
 
 });

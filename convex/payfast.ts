@@ -151,6 +151,10 @@ export const verifyAndProcessITN = internalAction({
                 status: "paid",
                 paymentId: pfPaymentId,
             });
+
+            // Send order confirmation to customer + alert vendors
+            await ctx.runAction(internal.email.sendOrderConfirmation, { orderId });
+            await ctx.runAction(internal.email.sendVendorNewOrderAlert, { orderId });
         } else if (paymentStatus === "CANCELLED") {
             await ctx.runMutation(internal.payfastWebhook.updateOrderPayment, {
                 orderId,

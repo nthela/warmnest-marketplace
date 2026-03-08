@@ -86,6 +86,15 @@ export const create = mutation({
             throw new Error("Rating must be an integer between 1 and 5.");
         }
 
+        const title = args.title.trim();
+        const body = args.body.trim();
+        if (!title || title.length > 200) {
+            throw new Error("Review title is required and must be under 200 characters.");
+        }
+        if (!body || body.length > 2000) {
+            throw new Error("Review body is required and must be under 2000 characters.");
+        }
+
         // Check user hasn't already reviewed this product
         const existing = await ctx.db
             .query("reviews")
@@ -125,8 +134,8 @@ export const create = mutation({
             productId: args.productId,
             userId,
             rating: args.rating,
-            title: args.title,
-            body: args.body,
+            title,
+            body,
             verifiedPurchase,
             createdAt: Date.now(),
         });

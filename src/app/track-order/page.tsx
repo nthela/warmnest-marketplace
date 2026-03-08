@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "convex/react";
+import { useSearchParams } from "next/navigation";
 import { api } from "../../../convex/_generated/api";
 import { Header } from "@/components/ui/header";
 import { Input } from "@/components/ui/input";
@@ -10,8 +11,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search, Package } from "lucide-react";
 
 export default function TrackOrderPage() {
-    const [orderId, setOrderId] = useState("");
-    const [queryId, setQueryId] = useState(""); // actual ID to query
+    const searchParams = useSearchParams();
+    const idFromUrl = searchParams.get("id") || "";
+    const [orderId, setOrderId] = useState(idFromUrl);
+    const [queryId, setQueryId] = useState(idFromUrl); // actual ID to query
+
+    useEffect(() => {
+        if (idFromUrl) {
+            setOrderId(idFromUrl);
+            setQueryId(idFromUrl);
+        }
+    }, [idFromUrl]);
 
     const order = useQuery(api.orders.get, queryId ? { orderId: queryId } : "skip");
 

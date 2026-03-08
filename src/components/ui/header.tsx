@@ -9,8 +9,9 @@ import { useConvexAuth, useQuery } from "convex/react";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useRouter } from "next/navigation";
 import { api } from "../../../convex/_generated/api";
-import { Search, ShoppingCart, User, Menu, LogOut, Store, Shield, X } from "lucide-react";
+import { Search, ShoppingCart, User, Menu, LogOut, Store, Shield, X, Heart } from "lucide-react";
 import { useCart } from "@/contexts/cart-context";
+import { EmailVerificationBanner } from "@/components/ui/email-verification-banner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -55,6 +56,7 @@ export function Header() {
     }
 
     return (
+        <>
         <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className="container mx-auto px-4 h-16 flex items-center justify-between gap-4">
                 {/* Logo */}
@@ -146,9 +148,15 @@ export function Header() {
                                         </Link>
                                     </DropdownMenuItem>
                                     <DropdownMenuItem asChild>
-                                        <Link href="/track-order" className="cursor-pointer">
+                                        <Link href="/account/orders" className="cursor-pointer">
                                             <ShoppingCart className="mr-2 h-4 w-4" />
                                             My Orders
+                                        </Link>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem asChild>
+                                        <Link href="/account/wishlist" className="cursor-pointer">
+                                            <Heart className="mr-2 h-4 w-4" />
+                                            My Wishlist
                                         </Link>
                                     </DropdownMenuItem>
                                     {(user.role === "vendor" || user.vendorId) && (
@@ -248,6 +256,12 @@ export function Header() {
                                         <Link href="/account" className="text-lg font-medium">
                                             My Account
                                         </Link>
+                                        <Link href="/account/orders" className="text-lg font-medium">
+                                            My Orders
+                                        </Link>
+                                        <Link href="/account/wishlist" className="text-lg font-medium">
+                                            My Wishlist
+                                        </Link>
                                         <button onClick={handleSignOut} className="text-lg font-medium text-red-600 text-left">
                                             Sign Out
                                         </button>
@@ -286,5 +300,7 @@ export function Header() {
                 </div>
             )}
         </header>
+        <EmailVerificationBanner />
+        </>
     );
 }

@@ -89,47 +89,47 @@ export const createProduct = mutation({
         category: v.string(),
         tags: v.optional(v.array(v.string())),
         images: v.array(v.string()),
+        vendorId: v.optional(v.id("vendors")),
     },
     handler: async (ctx, args) => {
         const userId = await getAuthUserId(ctx);
         if (!userId) throw new Error("Unauthorized");
 
-        const vendor = await ctx.db
-            .query("vendors")
-            .withIndex("by_user", (q) => q.eq("userId", userId))
-            .first();
+        // Input validation
+        const name = args.name.trim();
+        if (!name || name.length > 200) {
+            throw new Error("Product name is required and must be under 200 characters.");
+        }
+        if (args.price < 0) throw new Error("Price cannot be negative.");
+        if (args.salePrice !== undefined && args.salePrice < 0) throw new Error("Sale price cannot be negative.");
+        if (args.salePrice !== undefined && args.salePrice >= args.price) throw new Error("Sale price must be less than the regular price.");
+        if (args.stock < 0 || !Number.isInteger(args.stock)) throw new Error("Stock must be a non-negative integer.");
 
-        // Allow admin to create products (uses first vendor or throws)
         const user = await ctx.db.get(userId);
-        if (!vendor || vendor.status !== "approved") {
-            if (user?.role === "admin") {
-                // Admin can create products — use first approved vendor as fallback
-                const anyVendor = await ctx.db
-                    .query("vendors")
-                    .filter((q) => q.eq(q.field("status"), "approved"))
-                    .first();
-                if (anyVendor) {
-                    const productId = await ctx.db.insert("products", {
-                        vendorId: anyVendor._id,
-                        name: args.name,
-                        description: args.description,
-                        price: args.price,
-                        salePrice: args.salePrice,
-                        sku: args.sku,
-                        stock: args.stock,
-                        category: args.category,
-                        images: args.images,
-                        tags: args.tags ?? [],
-                        isActive: true,
-                    });
-                    return productId;
-                }
+        let targetVendorId: typeof args.vendorId;
+
+        if (user?.role === "admin" && args.vendorId) {
+            // Admin can create products for a specific vendor
+            const targetVendor = await ctx.db.get(args.vendorId);
+            if (!targetVendor || targetVendor.status !== "approved") {
+                throw new Error("Target vendor not found or not approved.");
             }
-            throw new Error("Vendor not approved");
+            targetVendorId = args.vendorId;
+        } else {
+            // Regular vendor flow
+            const vendor = await ctx.db
+                .query("vendors")
+                .withIndex("by_user", (q) => q.eq("userId", userId))
+                .first();
+
+            if (!vendor || vendor.status !== "approved") {
+                throw new Error("Vendor not approved");
+            }
+            targetVendorId = vendor._id;
         }
 
         const productId = await ctx.db.insert("products", {
-            vendorId: vendor._id,
+            vendorId: targetVendorId!,
             name: args.name,
             description: args.description,
             price: args.price,
@@ -194,6 +194,16 @@ export const updateProduct = mutation({
     handler: async (ctx, args) => {
         const userId = await getAuthUserId(ctx);
         if (!userId) throw new Error("Unauthorized");
+
+        // Input validation
+        const name = args.name.trim();
+        if (!name || name.length > 200) {
+            throw new Error("Product name is required and must be under 200 characters.");
+        }
+        if (args.price < 0) throw new Error("Price cannot be negative.");
+        if (args.salePrice !== undefined && args.salePrice < 0) throw new Error("Sale price cannot be negative.");
+        if (args.salePrice !== undefined && args.salePrice >= args.price) throw new Error("Sale price must be less than the regular price.");
+        if (args.stock < 0 || !Number.isInteger(args.stock)) throw new Error("Stock must be a non-negative integer.");
 
         const product = await ctx.db.get(args.productId);
         if (!product) throw new Error("Product not found");

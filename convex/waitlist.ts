@@ -9,10 +9,18 @@ export const join = mutation({
         businessType: v.union(v.literal("sole_proprietor"), v.literal("registered_business")),
     },
     handler: async (ctx, args) => {
+        // Input validation
+        const name = args.name.trim();
+        const email = args.email.trim().toLowerCase();
+        const location = args.location.trim();
+        if (!name || name.length > 200) throw new Error("Name is required and must be under 200 characters.");
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("A valid email address is required.");
+        if (!location || location.length > 200) throw new Error("Location is required and must be under 200 characters.");
+
         // Check if email already on waitlist
         const existing = await ctx.db
             .query("vendorWaitlist")
-            .withIndex("by_email", (q) => q.eq("email", args.email))
+            .withIndex("by_email", (q) => q.eq("email", email))
             .first();
 
         if (existing) {
@@ -20,9 +28,9 @@ export const join = mutation({
         }
 
         return await ctx.db.insert("vendorWaitlist", {
-            name: args.name,
-            email: args.email,
-            location: args.location,
+            name,
+            email,
+            location,
             businessType: args.businessType,
             createdAt: Date.now(),
         });

@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { User, Store, Package, ShoppingBag, LogOut, Shield } from "lucide-react";
+import { User, Store, Package, ShoppingBag, LogOut, Shield, Heart, CheckCircle, AlertCircle } from "lucide-react";
 
 export default function AccountPage() {
     const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
@@ -73,6 +73,17 @@ export default function AccountPage() {
                                     <span className={`inline-block mt-1 text-xs font-medium px-2 py-0.5 rounded-full capitalize ${roleBadge}`}>
                                         {user?.role}
                                     </span>
+                                    {user?.emailVerified ? (
+                                        <span className="inline-flex items-center gap-1 ml-2 text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+                                            <CheckCircle className="h-3 w-3" />
+                                            Verified
+                                        </span>
+                                    ) : (
+                                        <span className="inline-flex items-center gap-1 ml-2 text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                                            <AlertCircle className="h-3 w-3" />
+                                            Unverified
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                         </CardContent>
@@ -84,10 +95,22 @@ export default function AccountPage() {
                             <CardTitle>Quick Actions</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-2">
+                            <Link href="/account/orders" className="block">
+                                <Button variant="outline" className="w-full justify-start gap-2">
+                                    <Package className="h-4 w-4" />
+                                    My Orders
+                                </Button>
+                            </Link>
                             <Link href="/track-order" className="block">
                                 <Button variant="outline" className="w-full justify-start gap-2">
                                     <Package className="h-4 w-4" />
-                                    Track Orders
+                                    Track Order
+                                </Button>
+                            </Link>
+                            <Link href="/account/wishlist" className="block">
+                                <Button variant="outline" className="w-full justify-start gap-2">
+                                    <Heart className="h-4 w-4" />
+                                    My Wishlist
                                 </Button>
                             </Link>
                             <Link href="/cart" className="block">

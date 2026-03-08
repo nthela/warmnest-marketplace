@@ -12,6 +12,9 @@ import type * as _tmp_debug from "../_tmp_debug.js";
 import type * as admin from "../admin.js";
 import type * as analytics from "../analytics.js";
 import type * as auth from "../auth.js";
+import type * as email from "../email.js";
+import type * as emailQueries from "../emailQueries.js";
+import type * as emailVerification from "../emailVerification.js";
 import type * as http from "../http.js";
 import type * as orders from "../orders.js";
 import type * as payfast from "../payfast.js";
@@ -22,6 +25,7 @@ import type * as siteSettings from "../siteSettings.js";
 import type * as users from "../users.js";
 import type * as vendors from "../vendors.js";
 import type * as waitlist from "../waitlist.js";
+import type * as wishlist from "../wishlist.js";
 
 import type {
   ApiFromModules,
@@ -34,6 +38,9 @@ declare const fullApi: ApiFromModules<{
   admin: typeof admin;
   analytics: typeof analytics;
   auth: typeof auth;
+  email: typeof email;
+  emailQueries: typeof emailQueries;
+  emailVerification: typeof emailVerification;
   http: typeof http;
   orders: typeof orders;
   payfast: typeof payfast;
@@ -44,6 +51,7 @@ declare const fullApi: ApiFromModules<{
   users: typeof users;
   vendors: typeof vendors;
   waitlist: typeof waitlist;
+  wishlist: typeof wishlist;
 }>;
 
 /**

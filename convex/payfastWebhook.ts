@@ -61,6 +61,12 @@ export const updateOrderPayment = internalMutation({
             return;
         }
 
+        // Guard against duplicate payment IDs
+        if (order.paymentId && order.paymentId === args.paymentId) {
+            console.log(`Order ${args.orderId} already processed with payment ${args.paymentId}, skipping`);
+            return;
+        }
+
         await ctx.db.patch(normalizedId, {
             status: args.status,
             paymentId: args.paymentId,

@@ -23,6 +23,8 @@ export default function ProductPage() {
     const currentUser = useQuery(api.users.currentUser);
     const createReview = useMutation(api.reviews.create);
     const deleteReview = useMutation(api.reviews.remove);
+    const isWishlisted = useQuery(api.wishlist.isInWishlist, { productId });
+    const toggleWishlist = useMutation(api.wishlist.toggle);
 
     const { addItem } = useCart();
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -300,8 +302,14 @@ export default function ProductPage() {
                                         <><ShoppingCart className="mr-2 h-5 w-5" /> Add to Cart</>
                                     )}
                                 </Button>
-                                <Button size="lg" variant="outline" className="h-14 w-14 p-0">
-                                    <Heart className="h-5 w-5" />
+                                <Button
+                                    size="lg"
+                                    variant="outline"
+                                    className={`h-14 w-14 p-0 transition-colors ${isWishlisted ? "bg-red-50 border-red-200 hover:bg-red-100" : ""}`}
+                                    onClick={() => toggleWishlist({ productId })}
+                                    title={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+                                >
+                                    <Heart className={`h-5 w-5 transition-colors ${isWishlisted ? "text-red-500 fill-red-500" : ""}`} />
                                 </Button>
                             </div>
                         </div>

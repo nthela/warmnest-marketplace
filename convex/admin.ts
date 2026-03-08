@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { query, mutation, QueryCtx, MutationCtx } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { internal } from "./_generated/api";
 
 
 // Helper: verify the current user is an admin
@@ -291,6 +292,15 @@ export const updateOrderStatus = mutation({
     handler: async (ctx, args) => {
         await requireAdmin(ctx);
         await ctx.db.patch(args.orderId, { status: args.status });
+
+        // Send email notification for status changes customers care about
+        const notifyStatuses = ["shipped", "completed", "cancelled", "processing"];
+        if (notifyStatuses.includes(args.status)) {
+            await ctx.scheduler.runAfter(0, internal.email.sendShippingUpdate, {
+                orderId: args.orderId,
+                status: args.status,
+            });
+        }
     },
 });
 
