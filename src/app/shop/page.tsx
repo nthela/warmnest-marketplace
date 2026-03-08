@@ -39,15 +39,21 @@ function ProductCard({
     addedId,
     onAddToCart,
 }: {
-    product: { _id: string; name: string; price: number; salePrice?: number; imageUrls?: string[]; category?: string };
+    product: { _id: string; name: string; price: number; salePrice?: number; imageUrls?: string[]; category?: string; stock?: number };
     addedId: string | null;
     onAddToCart: (product: { _id: string; name: string; price: number; salePrice?: number; imageUrls?: string[] }) => void;
 }) {
+    const stock = product.stock ?? Infinity;
     return (
         <Card className="w-[160px] sm:w-[200px] flex-shrink-0 snap-start overflow-hidden group hover:shadow-lg transition-shadow">
             <Link href={`/shop/${product._id}`}>
                 <div className="aspect-square bg-muted relative">
                     <ProductImageCarousel images={product.imageUrls ?? []} alt={product.name} />
+                    {stock > 0 && stock < 10 && (
+                        <span className="absolute top-2 left-2 bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                            Only {stock} left
+                        </span>
+                    )}
                 </div>
             </Link>
             <CardContent className="p-3">
@@ -92,7 +98,7 @@ function ProductRow({
 }: {
     title: string;
     icon?: React.ReactNode;
-    products: { _id: string; name: string; price: number; salePrice?: number; imageUrls?: string[] }[];
+    products: { _id: string; name: string; price: number; salePrice?: number; imageUrls?: string[]; stock?: number }[];
     addedId: string | null;
     onAddToCart: (product: { _id: string; name: string; price: number; salePrice?: number; imageUrls?: string[] }) => void;
     linkHref?: string;

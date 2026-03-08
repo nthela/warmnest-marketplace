@@ -263,6 +263,16 @@ export default function ProductPage() {
                             )}
                         </div>
 
+                        {product.stock <= 0 ? (
+                            <div className="inline-flex items-center bg-red-50 text-red-600 text-sm font-medium px-3 py-1.5 rounded-md">
+                                Out of Stock
+                            </div>
+                        ) : product.stock < 10 ? (
+                            <div className="inline-flex items-center bg-orange-50 text-orange-600 text-sm font-medium px-3 py-1.5 rounded-md">
+                                Only {product.stock} left in stock - order soon
+                            </div>
+                        ) : null}
+
                         {product.sku && (
                             <div className="text-sm text-muted-foreground">SKU: {product.sku}</div>
                         )}
@@ -284,7 +294,9 @@ export default function ProductPage() {
                                 <Button
                                     size="lg"
                                     className="flex-1 text-lg h-14"
+                                    disabled={product.stock <= 0}
                                     onClick={() => {
+                                        if (product.stock <= 0) return;
                                         addItem({
                                             productId: product._id,
                                             name: product.name,
@@ -296,7 +308,9 @@ export default function ProductPage() {
                                         setTimeout(() => setAdded(false), 2000);
                                     }}
                                 >
-                                    {added ? (
+                                    {product.stock <= 0 ? (
+                                        "Out of Stock"
+                                    ) : added ? (
                                         <><Check className="mr-2 h-5 w-5" /> Added!</>
                                     ) : (
                                         <><ShoppingCart className="mr-2 h-5 w-5" /> Add to Cart</>
