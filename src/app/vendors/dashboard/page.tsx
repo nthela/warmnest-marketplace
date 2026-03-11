@@ -1,20 +1,138 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { Header } from "@/components/ui/header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import Link from "next/link";
+import { useState, useEffect } from "react";
 import {
     Package, ShoppingBag, DollarSign, TrendingUp, TrendingDown, Minus,
-    Star, AlertTriangle, BarChart3
+    Star, AlertTriangle, BarChart3, MapPin, CheckCircle2
 } from "lucide-react";
 
 function ChangeBadge({ value }: { value: number }) {
     if (value > 0) return <span className="inline-flex items-center gap-0.5 text-xs font-medium text-green-600"><TrendingUp className="h-3 w-3" />+{value}%</span>;
     if (value < 0) return <span className="inline-flex items-center gap-0.5 text-xs font-medium text-red-500"><TrendingDown className="h-3 w-3" />{value}%</span>;
     return <span className="inline-flex items-center gap-0.5 text-xs font-medium text-muted-foreground"><Minus className="h-3 w-3" />0%</span>;
+}
+
+function PickupAddressCard({ vendor }: { vendor: { collectionAddress?: { street: string; city: string; code: string; country?: string } | null; shiprazorWarehouseId?: string | null } }) {
+    const updateAddress = useMutation(api.vendors.updateCollectionAddress);
+    const [street, setStreet] = useState(vendor.collectionAddress?.street ?? "");
+    const [city, setCity] = useState(vendor.collectionAddress?.city ?? "");
+    const [code, setCode] = useState(vendor.collectionAddress?.code ?? "");
+    const [warehouseId, setWarehouseId] = useState(vendor.shiprazorWarehouseId ?? "");
+    const [saving, setSaving] = useState(false);
+    const [saved, setSaved] = useState(false);
+
+    useEffect(() => {
+        setStreet(vendor.collectionAddress?.street ?? "");
+        setCity(vendor.collectionAddress?.city ?? "");
+        setCode(vendor.collectionAddress?.code ?? "");
+        setWarehouseId(vendor.shiprazorWarehouseId ?? "");
+    }, [vendor.collectionAddress?.street, vendor.collectionAddress?.city, vendor.collectionAddress?.code, vendor.shiprazorWarehouseId]);
+
+    async function handleSave() {
+        if (!street.trim() || !city.trim() || !code.trim()) return;
+        setSaving(true);
+        try {
+            await updateAddress({
+                street: street.trim(),
+                city: city.trim(),
+                code: code.trim(),
+                shiprazorWarehouseId: warehouseId.trim() || undefined,
+            });
+            setSaved(true);
+            setTimeout(() => setSaved(false), 3000);
+        } finally {
+            setSaving(false);
+        }
+    }
+
+    return (
+        <Card className="mb-8">
+            <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-primary" />
+                    Pickup / Collection Address
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">
+                    This is where couriers will collect parcels. Each vendor has their own pickup point.
+                </p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="md:col-span-3 space-y-1">
+                        <Label htmlFor="col-street" className="text-xs">Street Address</Label>
+                        <Input
+                            id="col-street"
+                            placeholder="e.g. 12 Main Road, Sandton"
+                            value={street}
+                            onChange={(e) => setStreet(e.target.value)}
+                        />
+                    </div>
+                    <div className="space-y-1">
+                        <Label htmlFor="col-city" className="text-xs">City</Label>
+                        <Input
+                            id="col-city"
+                            placeholder="e.g. Johannesburg"
+                            value={city}
+                            onChange={(e) => setCity(e.target.value)}
+                        />
+                    </div>
+                    <div className="space-y-1">
+                        <Label htmlFor="col-code" className="text-xs">Postal Code</Label>
+                        <Input
+                            id="col-code"
+                            placeholder="e.g. 2196"
+                            value={code}
+                            onChange={(e) => setCode(e.target.value)}
+                        />
+                    </div>
+                    <div className="space-y-1">
+                        <Label htmlFor="col-warehouse" className="text-xs">ShipRazor Warehouse ID</Label>
+                        <Input
+                            id="col-warehouse"
+                            placeholder="e.g. 65bb7a21bbea..."
+                            value={warehouseId}
+                            onChange={(e) => setWarehouseId(e.target.value)}
+                        />
+                    </div>
+                </div>
+                <Button
+                    onClick={handleSave}
+                    disabled={saving || !street.trim() || !city.trim() || !code.trim()}
+                    className="w-full md:w-auto"
+                >
+                    {saving ? "Saving…" : saved ? (
+                        <span className="flex items-center gap-1"><CheckCircle2 className="h-4 w-4" /> Saved</span>
+                    ) : "Save Address & Warehouse"}
+                </Button>
+                {vendor.collectionAddress && (
+                    <p className="text-xs text-muted-foreground">
+                        Current: {vendor.collectionAddress.street}, {vendor.collectionAddress.city}, {vendor.collectionAddress.code}, ZA
+                        {vendor.shiprazorWarehouseId && <> · Warehouse: {vendor.shiprazorWarehouseId}</>}
+                    </p>
+                )}
+                {!vendor.collectionAddress && (
+                    <p className="text-xs text-yellow-600 flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        No pickup address set — couriers won&apos;t know where to collect.
+                    </p>
+                )}
+                {vendor.collectionAddress && !vendor.shiprazorWarehouseId && (
+                    <p className="text-xs text-yellow-600 flex items-center gap-1">
+                        <AlertTriangle className="h-3 w-3" />
+                        No ShipRazor Warehouse ID — create one at shiprazor.com → Settings → Warehouse, then paste the ID here.
+                    </p>
+                )}
+            </CardContent>
+        </Card>
+    );
 }
 
 export default function VendorDashboard() {
@@ -201,6 +319,8 @@ export default function VendorDashboard() {
                         </CardContent>
                     </Card>
                 )}
+
+                <PickupAddressCard vendor={vendor} />
 
                 <h2 className="text-xl font-bold mb-4">Quick Actions</h2>
                 <div className="flex gap-4">

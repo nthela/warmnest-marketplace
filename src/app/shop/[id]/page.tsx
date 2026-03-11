@@ -157,7 +157,7 @@ export default function ProductPage() {
                         {/* Main Image — swipeable carousel */}
                         <div
                             ref={carouselRef}
-                            className="relative aspect-square bg-white rounded-lg border overflow-hidden select-none"
+                            className={`relative aspect-square bg-white rounded-lg border overflow-hidden select-none ${product.stock <= 0 ? "opacity-50 grayscale" : ""}`}
                         >
                             {images.length > 0 ? (
                                 <div

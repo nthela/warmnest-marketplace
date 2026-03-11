@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { Id } from "./_generated/dataModel";
 
 // Generate a short-lived upload URL for Convex file storage
 export const generateUploadUrl = mutation(async (ctx) => {
@@ -60,6 +61,49 @@ export const register = mutation({
         // For now, role update might happen on approval.
 
         return vendorId;
+    },
+});
+
+export const updateCollectionAddress = mutation({
+    args: {
+        vendorId: v.optional(v.id("vendors")), // admin can specify; vendors update their own
+        street: v.string(),
+        city: v.string(),
+        code: v.string(),
+        shiprazorWarehouseId: v.optional(v.string()),
+    },
+    handler: async (ctx, args) => {
+        const userId = await getAuthUserId(ctx);
+        if (!userId) throw new Error("Unauthorized");
+
+        const user = await ctx.db.get(userId);
+        let targetVendorId: typeof args.vendorId;
+
+        if (user?.role === "admin" && args.vendorId) {
+            targetVendorId = args.vendorId;
+        } else {
+            const vendor = await ctx.db
+                .query("vendors")
+                .withIndex("by_user", (q) => q.eq("userId", userId))
+                .first();
+            if (!vendor) throw new Error("Vendor not found");
+            targetVendorId = vendor._id;
+        }
+
+        const patch: Record<string, unknown> = {
+            collectionAddress: {
+                street: args.street,
+                city: args.city,
+                code: args.code,
+                country: "ZA",
+            },
+        };
+
+        if (args.shiprazorWarehouseId !== undefined) {
+            patch.shiprazorWarehouseId = args.shiprazorWarehouseId || undefined;
+        }
+
+        await ctx.db.patch(targetVendorId!, patch);
     },
 });
 
@@ -271,5 +315,65 @@ export const approveVendor = mutation({
         if (!vendor) throw new Error("Vendor not found");
         await ctx.db.patch(args.vendorId, { status: "approved" });
         await ctx.db.patch(vendor.userId, { role: "vendor", vendorId: args.vendorId });
+    },
+});
+
+// Used by ShipRazor to get warehouse IDs for vendors in an order
+export const getWarehouseIdsForProducts = query({
+    args: { productIds: v.array(v.string()) },
+    handler: async (ctx, args) => {
+        const seenVendorIds = new Set<string>();
+        const warehouses: { vendorId: string; shiprazorWarehouseId: string }[] = [];
+
+        for (const id of args.productIds) {
+            try {
+                const product = await ctx.db.get(id as Id<"products">);
+                if (!product || seenVendorIds.has(product.vendorId)) continue;
+                seenVendorIds.add(product.vendorId);
+
+                const vendor = await ctx.db.get(product.vendorId as Id<"vendors">);
+                if (vendor?.shiprazorWarehouseId) {
+                    warehouses.push({
+                        vendorId: product.vendorId,
+                        shiprazorWarehouseId: vendor.shiprazorWarehouseId,
+                    });
+                }
+            } catch {
+                // Skip invalid IDs
+            }
+        }
+
+        return warehouses;
+    },
+});
+
+// Used by the shipping action to determine collection addresses for each vendor in the cart
+export const getCollectionAddressesForProducts = query({
+    args: { productIds: v.array(v.string()) },
+    handler: async (ctx, args) => {
+        const seenVendorIds = new Set<string>();
+        const addresses: { vendorId: string; street: string; city: string; code: string }[] = [];
+
+        for (const id of args.productIds) {
+            try {
+                const product = await ctx.db.get(id as Id<"products">);
+                if (!product || seenVendorIds.has(product.vendorId)) continue;
+                seenVendorIds.add(product.vendorId);
+
+                const vendor = await ctx.db.get(product.vendorId as Id<"vendors">);
+                if (vendor?.collectionAddress) {
+                    addresses.push({
+                        vendorId: product.vendorId,
+                        street: vendor.collectionAddress.street,
+                        city: vendor.collectionAddress.city,
+                        code: vendor.collectionAddress.code,
+                    });
+                }
+            } catch {
+                // Skip invalid IDs
+            }
+        }
+
+        return addresses;
     },
 });

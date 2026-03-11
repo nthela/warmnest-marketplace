@@ -155,6 +155,13 @@ export const verifyAndProcessITN = internalAction({
             // Send order confirmation to customer + alert vendors
             await ctx.runAction(internal.email.sendOrderConfirmation, { orderId });
             await ctx.runAction(internal.email.sendVendorNewOrderAlert, { orderId });
+
+            // Create ShipRazor order for courier dispatch
+            try {
+                await ctx.runAction(internal.shiprazor.createOrder, { orderId });
+            } catch (e) {
+                console.error("ShipRazor order creation failed (non-blocking):", e);
+            }
         } else if (paymentStatus === "CANCELLED") {
             await ctx.runMutation(internal.payfastWebhook.updateOrderPayment, {
                 orderId,

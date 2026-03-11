@@ -30,12 +30,18 @@ function ProductCard({
     onAddToCart: (product: { _id: string; name: string; price: number; salePrice?: number; imageUrls?: string[] }) => void;
 }) {
     const stock = product.stock ?? Infinity;
+    const isOutOfStock = stock <= 0;
     return (
-        <Card className="w-[160px] sm:w-[200px] flex-shrink-0 snap-start overflow-hidden group hover:shadow-lg transition-shadow">
+        <Card className={`w-[160px] sm:w-[200px] flex-shrink-0 snap-start overflow-hidden group transition-shadow ${isOutOfStock ? "opacity-50 grayscale" : "hover:shadow-lg"}`}>
             <Link href={`/shop/${product._id}`}>
                 <div className="aspect-square bg-muted relative">
                     <ProductImageCarousel images={product.imageUrls ?? []} alt={product.name} />
-                    {stock > 0 && stock < 10 && (
+                    {isOutOfStock && (
+                        <span className="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full z-10">
+                            Out of Stock
+                        </span>
+                    )}
+                    {!isOutOfStock && stock < 10 && (
                         <span className="absolute top-2 left-2 bg-orange-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full z-10">
                             Only {stock} left
                         </span>
@@ -59,8 +65,10 @@ function ProductCard({
                     <Link href={`/shop/${product._id}`} className="flex-1">
                         <Button variant="outline" className="w-full" size="sm">View</Button>
                     </Link>
-                    <Button size="sm" className="flex-1" onClick={() => onAddToCart(product)}>
-                        {addedId === product._id ? (
+                    <Button size="sm" className="flex-1" disabled={isOutOfStock} onClick={() => !isOutOfStock && onAddToCart(product)}>
+                        {isOutOfStock ? (
+                            "Sold Out"
+                        ) : addedId === product._id ? (
                             <Check className="h-4 w-4" />
                         ) : (
                             <><ShoppingCart className="h-4 w-4 mr-1" /> Add</>

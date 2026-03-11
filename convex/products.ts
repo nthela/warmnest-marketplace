@@ -39,15 +39,12 @@ export const list = query({
                 })
                 .collect();
 
-            // Filter out out-of-stock products
-            const inStockResults = searchResults.filter(p => p.stock > 0);
-
             // Manual pagination for search results
             const cursor = args.paginationOpts.cursor;
             const numItems = args.paginationOpts.numItems;
             const startIndex = cursor ? parseInt(cursor) : 0;
-            const page = inStockResults.slice(startIndex, startIndex + numItems);
-            const nextCursor = startIndex + numItems < inStockResults.length
+            const page = searchResults.slice(startIndex, startIndex + numItems);
+            const nextCursor = startIndex + numItems < searchResults.length
                 ? String(startIndex + numItems)
                 : null;
 
@@ -74,7 +71,7 @@ export const list = query({
             q = ctx.db.query("products").withIndex("by_vendor", (q) => q.eq("vendorId", args.vendorId!));
         }
 
-        const results = await q.filter(q => q.and(q.eq(q.field("isActive"), true), q.gt(q.field("stock"), 0))).paginate(args.paginationOpts);
+        const results = await q.filter(q => q.eq(q.field("isActive"), true)).paginate(args.paginationOpts);
 
         const pageWithUrls = await Promise.all(
             results.page.map(async (product) => {
@@ -93,7 +90,7 @@ export const featured = query({
         const products = await ctx.db
             .query("products")
             .withIndex("by_category")
-            .filter((q) => q.and(q.eq(q.field("isActive"), true), q.gt(q.field("stock"), 0)))
+            .filter((q) => q.eq(q.field("isActive"), true))
             .order("desc")
             .take(8);
 
@@ -125,7 +122,7 @@ export const byCategories = query({
             const products = await ctx.db
                 .query("products")
                 .withIndex("by_category", (q) => q.eq("category", category))
-                .filter((q) => q.and(q.eq(q.field("isActive"), true), q.gt(q.field("stock"), 0)))
+                .filter((q) => q.eq(q.field("isActive"), true))
                 .order("desc")
                 .take(10);
 
@@ -170,7 +167,7 @@ export const getByIds = query({
         for (const id of args.ids) {
             try {
                 const product = await ctx.db.get(id as Id<"products">);
-                if (!product || !product.isActive || product.stock <= 0) continue;
+                if (!product || !product.isActive) continue;
                 const imageUrls = await resolveImageUrls(ctx, product.images);
                 result.push({ ...product, imageUrls: imageUrls.filter(Boolean) as string[] });
             } catch {
@@ -191,7 +188,6 @@ export const deals = query({
             .filter((q) =>
                 q.and(
                     q.eq(q.field("isActive"), true),
-                    q.gt(q.field("stock"), 0),
                     q.neq(q.field("salePrice"), undefined)
                 )
             )
@@ -216,7 +212,7 @@ export const newest = query({
         const products = await ctx.db
             .query("products")
             .order("desc")
-            .filter((q) => q.and(q.eq(q.field("isActive"), true), q.gt(q.field("stock"), 0)))
+            .filter((q) => q.eq(q.field("isActive"), true))
             .take(12);
 
         const withUrls = await Promise.all(
@@ -237,7 +233,7 @@ export const byCategory = query({
         const products = await ctx.db
             .query("products")
             .withIndex("by_category", (q) => q.eq("category", args.category))
-            .filter((q) => q.and(q.eq(q.field("isActive"), true), q.gt(q.field("stock"), 0)))
+            .filter((q) => q.eq(q.field("isActive"), true))
             .order("desc")
             .take(args.limit ?? 12);
 

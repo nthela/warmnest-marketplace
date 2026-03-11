@@ -37,6 +37,13 @@ export default defineSchema({
     logoUrl: v.optional(v.string()),
     status: v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected")),
     commissionRate: v.number(), // e.g., 0.12 for 12%
+    collectionAddress: v.optional(v.object({
+      street: v.string(),
+      city: v.string(),
+      code: v.string(),
+      country: v.optional(v.string()),
+    })),
+    shiprazorWarehouseId: v.optional(v.string()), // ShipRazor warehouse ID per vendor
   })
     .index("by_user", ["userId"])
     .index("by_slug", ["slug"]),
@@ -75,6 +82,7 @@ export default defineSchema({
       v.literal("cancelled")
     ),
     paymentId: v.optional(v.string()), // PayFast ID
+    shiprazorOrderId: v.optional(v.number()), // ShipRazor order ID for tracking
     shippingAddress: v.object({
       street: v.string(),
       city: v.string(),

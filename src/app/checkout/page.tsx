@@ -5,12 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useState } from "react";
-import { useAction, useMutation } from "convex/react";
+import { useState, useMemo } from "react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { useConvexAuth } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
-import { getShippingRates, ShippingRate } from "@/lib/shiprazor";
+import type { ShippingRate } from "@/lib/shiprazor";
 import { submitPayFastForm } from "@/lib/payfast";
 import { useCart } from "@/contexts/cart-context";
 import Link from "next/link";
@@ -28,10 +28,33 @@ const SA_PROVINCES = [
 ];
 
 export default function CheckoutPage() {
-    const { items, getTotal } = useCart();
+    const { items, getTotal, removeItem } = useCart();
     const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
     const createOrder = useMutation(api.orders.create);
     const buildPaymentData = useAction(api.payfast.buildPaymentData);
+    const fetchShippingRates = useAction(api.shipping.getRates);
+
+    // Check real-time stock for cart items
+    const cartProductIds = useMemo(() => items.map((i) => i.productId), [items]);
+    const cartProducts = useQuery(
+        api.products.getByIds,
+        cartProductIds.length > 0 ? { ids: cartProductIds } : "skip"
+    );
+    const stockMap = useMemo(() => {
+        const map = new Map<string, number>();
+        if (cartProducts) {
+            for (const p of cartProducts) {
+                map.set(p._id, p.stock);
+            }
+        }
+        return map;
+    }, [cartProducts]);
+    const hasOutOfStock = useMemo(() => {
+        return items.some((item) => {
+            const stock = stockMap.get(item.productId);
+            return stock !== undefined && stock <= 0;
+        });
+    }, [items, stockMap]);
 
     const [step, setStep] = useState<"address" | "shipping" | "payment">("address");
     const [address, setAddress] = useState({ street: "", city: "", province: "Gauteng", code: "" });
@@ -79,10 +102,22 @@ export default function CheckoutPage() {
     const handleAddressSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoadingRates(true);
-        const fetchedRates = await getShippingRates(address, 5);
-        setRates(fetchedRates);
-        setLoadingRates(false);
-        setStep("shipping");
+        try {
+            const fetchedRates = await fetchShippingRates({
+                street: address.street,
+                city: address.city,
+                code: address.code,
+                province: address.province,
+                productIds: items.map((i) => i.productId),
+            });
+            setRates(fetchedRates as ShippingRate[]);
+            setStep("shipping");
+        } catch (error) {
+            console.error("Failed to fetch shipping rates:", error);
+            alert("Could not calculate shipping rates. Please try again.");
+        } finally {
+            setLoadingRates(false);
+        }
     };
 
     const handleShippingSelect = (rate: ShippingRate) => {
@@ -225,8 +260,8 @@ export default function CheckoutPage() {
                                                 ))}
                                             </select>
                                         </div>
-                                        <Button type="submit" className="w-full" disabled={loadingRates}>
-                                            {loadingRates ? "Calculating Shipping..." : "Continue to Shipping"}
+                                        <Button type="submit" className="w-full" disabled={loadingRates || hasOutOfStock}>
+                                            {hasOutOfStock ? "Remove out-of-stock items first" : loadingRates ? "Calculating Shipping..." : "Continue to Shipping"}
                                         </Button>
                                     </form>
                                 </CardContent>
@@ -322,8 +357,8 @@ export default function CheckoutPage() {
                                         {discountError && <p className="text-sm text-red-500 mt-1">{discountError}</p>}
                                     </div>
 
-                                    <Button size="lg" className="w-full" onClick={handlePayment} disabled={placing}>
-                                        {placing ? (finalTotal === 0 ? "Placing Order..." : "Redirecting to PayFast...") : (finalTotal === 0 ? "Place Free Order" : "Pay Securely via PayFast")}
+                                    <Button size="lg" className="w-full" onClick={handlePayment} disabled={placing || hasOutOfStock}>
+                                        {hasOutOfStock ? "Remove out-of-stock items first" : placing ? (finalTotal === 0 ? "Placing Order..." : "Redirecting to PayFast...") : (finalTotal === 0 ? "Place Free Order" : "Pay Securely via PayFast")}
                                     </Button>
                                     {finalTotal > 0 && <p className="text-xs text-center text-muted-foreground">Encryption by PayFast. Cards & EFT accepted.</p>}
                                 </CardContent>
@@ -338,22 +373,38 @@ export default function CheckoutPage() {
                                 <CardTitle className="text-base">Order Summary</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-3">
-                                {items.map((item) => (
-                                    <div key={item.productId} className="flex items-center gap-3">
-                                        <div className="h-12 w-12 bg-muted rounded overflow-hidden flex-shrink-0">
-                                            {item.image ? (
-                                                <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
-                                            ) : (
-                                                <div className="w-full h-full flex items-center justify-center text-[8px] text-muted-foreground">No img</div>
-                                            )}
+                                {items.map((item) => {
+                                    const itemStock = stockMap.get(item.productId);
+                                    const isOOS = itemStock !== undefined && itemStock <= 0;
+                                    return (
+                                        <div key={item.productId} className={`flex items-center gap-3 ${isOOS ? "opacity-50 grayscale" : ""}`}>
+                                            <div className="h-12 w-12 bg-muted rounded overflow-hidden flex-shrink-0">
+                                                {item.image ? (
+                                                    <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center text-[8px] text-muted-foreground">No img</div>
+                                                )}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-medium truncate">{item.name}</p>
+                                                {isOOS ? (
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="text-xs text-red-500 font-medium">Out of Stock</p>
+                                                        <button onClick={() => removeItem(item.productId)} className="text-xs text-red-500 underline hover:text-red-700">Remove</button>
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
+                                                )}
+                                            </div>
+                                            <span className={`text-sm font-medium ${isOOS ? "line-through" : ""}`}>R {(item.price * item.quantity).toFixed(2)}</span>
                                         </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-medium truncate">{item.name}</p>
-                                            <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
-                                        </div>
-                                        <span className="text-sm font-medium">R {(item.price * item.quantity).toFixed(2)}</span>
+                                    );
+                                })}
+                                {hasOutOfStock && (
+                                    <div className="bg-red-50 text-red-600 text-xs p-2 rounded">
+                                        Remove out-of-stock items to continue checkout.
                                     </div>
-                                ))}
+                                )}
                                 <hr />
                                 <div className="flex justify-between font-bold">
                                     <span>Subtotal</span>

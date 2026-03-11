@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { query, mutation } from "./_generated/server";
+import { query, mutation, internalMutation } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { internal } from "./_generated/api";
 
@@ -172,8 +172,53 @@ export const create = mutation({
         if (isFreeOrder) {
             await ctx.scheduler.runAfter(0, internal.email.sendOrderConfirmation, { orderId: orderId as string });
             await ctx.scheduler.runAfter(0, internal.email.sendVendorNewOrderAlert, { orderId: orderId as string });
+            // Create ShipRazor order for courier dispatch
+            await ctx.scheduler.runAfter(0, internal.shiprazor.createOrder, { orderId: orderId as string });
+        }
+
+        // Schedule auto-cancel after 30 minutes for unpaid orders
+        if (!isFreeOrder) {
+            await ctx.scheduler.runAfter(
+                30 * 60 * 1000, // 30 minutes
+                internal.orders.autoCancelUnpaid,
+                { orderId }
+            );
         }
 
         return orderId;
+    },
+});
+
+// ─── INTERNAL: Auto-cancel unpaid orders and restore stock ─────────
+export const autoCancelUnpaid = internalMutation({
+    args: { orderId: v.id("orders") },
+    handler: async (ctx, args) => {
+        const order = await ctx.db.get(args.orderId);
+        if (!order) return;
+
+        // Only cancel if still pending (not yet paid)
+        if (order.status !== "pending") {
+            return;
+        }
+
+        // Mark order as cancelled
+        await ctx.db.patch(args.orderId, { status: "cancelled" });
+
+        // Restore stock for each item
+        const orderItems = await ctx.db
+            .query("orderItems")
+            .withIndex("by_order", (q) => q.eq("orderId", args.orderId))
+            .collect();
+
+        for (const item of orderItems) {
+            const product = await ctx.db.get(item.productId);
+            if (product) {
+                await ctx.db.patch(item.productId, {
+                    stock: product.stock + item.quantity,
+                });
+            }
+        }
+
+        console.log(`Order ${args.orderId} auto-cancelled after 30min — stock restored`);
     },
 });
